@@ -854,3 +854,208 @@ Minimum compose services: `app` (pipeline runner), `redis` (queue broker, when P
 | 2026-04-15 | Production Hardening backlog added: DLQ, task audit log, health metrics, containerisation; terminology reference added to interview prep |
 | 2026-04-15 | Systems Thinking section added: filters vs. templates as the core design philosophy behind repeatable automated workflows |
 | 2026-04-17 | Maintenance: moved implemented QoL features into their proper stage sections; removed crossed-off items from backlog |
+| 2026-04-18 | New Channel Archetype Protocol added; Duelist and Night Zero archetype designs added |
+
+---
+
+## New Channel Archetype Protocol
+
+A repeatable onboarding blueprint for launching any new game channel or content archetype. Run this checklist in order when adding a new game or channel type.
+
+### Phase 1 — Infrastructure & Social Footprint
+
+- Create accounts on all target platforms (YouTube, TikTok, Instagram, Twitter/X, Reddit)
+- Use a consistent brand name and profile image across all platforms from day one
+- Add the game to `config.yaml` (one entry: `display_name`, `twitch_url`, `folder`)
+- Add subreddit name and flair ID to `config.yaml → distribution.platforms.reddit`
+
+### Phase 2 — The Scout Script (Automated Game Research)
+
+Run once per new game before the pipeline goes live. Steps:
+
+**2a. Wiki scraping — roster & weapon list**
+- Search for an official or community wiki (fandom.com, game8.co, the game's own site)
+- For hero shooters: extract the full playable hero list with role (Vanguard / Duelist / Tank / Support etc.)
+- For FPS / extraction shooters: extract the primary weapon list with category (AR, SMG, Sniper etc.)
+- Save as `assets/rosters/{game}.yaml` — same format as existing arc_raiders / marvel_rivals / deadlock files
+- Wire display names into `config.yaml → weapon_detector.games.{game}.weapons`
+
+**2b. Icon / asset extraction**
+- Use `tools/crop_hero_icons.py` on an in-game hero-select screenshot to bulk-crop portrait PNGs
+- Save to `assets/weapon_icons/{game}/{hero_or_weapon_id}.png`
+- For weapons: use `tools/extract_weapon_icon.py` on actual gameplay clips to pull from the HUD ROI directly
+- Icons feed the OpenCV `weapon_detector` stage so the pipeline can identify what hero/weapon is on screen
+
+**2c. HUD mapping**
+- Download one high-quality (1080p+) gameplay clip for the new game
+- Use `tools/preview_roi.py` to visualize current ROI overlays on a real frame
+- Adjust `kill_feed.games.{game}.roi` and `weapon_detector.games.{game}.roi` in `config.yaml` if needed
+- Run `python tools/extract_weapon_icon.py --debug` to confirm weapon ROI crops correctly
+
+### Phase 3 — The "Undiscovered Pro" Hunter
+
+High-ranked players with low view counts are the highest signal-to-noise clip sources. The pipeline already has `rank_looker` for heuristic filtering; this protocol extends it to proactively find those accounts.
+
+- Pull the Top 500 leaderboard from a third-party rank tracker (Tracker.gg, Deadlock Tracker, etc.)
+- For each in-game name (IGN): check whether a Twitch channel exists with that username or a known alias
+- Evaluate the channel's clip velocity: if a player is Top 50 in the world but their Twitch clips average < 500 views, they are a **High-Quality / Low-Competition** source
+- Add confirmed IGN → Twitch username mappings to `assets/broadcaster_ign_map.json`
+- These accounts become priority sources; future versions of `rank_looker` can bias toward them
+
+**Signal thresholds (starting point — adjust per game):**
+- Rank threshold: top 10% of the ranked ladder
+- View ceiling: < 5,000 average clip views (if higher, competition is already finding them)
+- Channel age: any (newer channels are better — less likely to be discovered already)
+
+---
+
+## Content Archetype — The Duelist (AI Cinematic Combat)
+
+**Premise:** Cinematic AI-generated duels between warriors, soldiers, and fighters from different cultures, time periods, and skill traditions. The "What-If" format — no game footage, fully generated.
+
+**Target audience:** History fans, martial arts fans, "versus" communities, action movie fans
+
+**Platform fit:** YouTube Shorts (hook + outcome), TikTok (curiosity loop), YouTube long-form (extended choreography)
+
+---
+
+### Production Logic
+
+**AI tools (as of 2026):**
+- Luma AI — best for realistic physics and movement
+- Runway Gen-3 / Gen-4 — best for cinematic lighting and professional choreography
+- ElevenLabs — authentic weapon sounds and environmental audio layered in post
+
+**The Prompt Matrix:**
+
+Every video is generated from two prompt components:
+
+| Component | What it controls |
+|---|---|
+| **Visual** | Setting, lighting, clothing, weapon aesthetics, camera style |
+| **Choreography** | Fight pacing, who gains ground and when, counters, final moment |
+
+Example visual prompt structure:
+> "Cinematic 4K, realistic textures, [location — e.g. Scottish Highlands at dusk / feudal Japanese village]. A duel between [Fighter A with specific detail] and [Fighter B with specific detail]. Dynamic handheld camera with slow-motion impacts. No gore or graphic injury."
+
+Example choreography structure:
+> "The fight is back-and-forth. [Fighter A] opens aggressively with [technique]. [Fighter B] uses reach/footwork to create distance, counter-attacks with [weapon move]. The momentum shifts twice before a decisive final exchange. Dramatic lighting change at the climax."
+
+**Key production rules:**
+- Fight must be competitive — no one-sided stomp; 2–3 dramatic momentum swings minimum
+- Location should be distinct and visually interesting (not generic arena)
+- Clothing and weapons must fit the fighter's background — do the research
+- Camera moves through the scene (not static); use slow-motion on impact moments
+- No gore, no graphic injury; violence is implied or shown at a cinematic/stylized level
+- Safe for all platforms — frame for curiosity, not shock
+
+---
+
+### Title & Hook Formula
+
+`[Fighter A] vs [Fighter B] — Who wins?`
+
+The title does the work. Keep it simple. The algorithm surfaces it to the right audience because the subject matter is inherently searchable.
+
+**SEO layer:** The title engine generates tags from the fighters' origins:
+- Fighter origins → `#Samurai #Viking #MartialArts #HistoricalCombat #WhoWouldWin`
+
+**Engagement mechanic:** Pin a comment asking viewers to vote for who they think should win — then post a follow-up "rematch" video based on the top comment.
+
+---
+
+### Content Matrix (Starter Combinations)
+
+| Fighter A | Fighter B | Location |
+|---|---|---|
+| Samurai | Viking | Coastal cliff, Norse coastline |
+| Spartan | Zulu Warrior | Open savanna |
+| Ninja | Ottoman Janissary | Rooftop Istanbul |
+| Medieval Knight | Mongolian Horse Archer | Steppe plains |
+| Shaolin Monk | Apache Warrior | Desert canyon |
+| Roman Legionnaire | Celtic Berserker | Forest clearing |
+| Maasai Warrior | Gurkha Soldier | East African highland |
+
+Expand the matrix over time; introduce fantasy crossovers (e.g., Viking vs. Samurai vs. Pirate — three-way) once the format is proven.
+
+---
+
+## Content Archetype — Night Zero (Zombie Outbreak POV)
+
+**Premise:** Anthology of short-form videos — each one is the first-person POV of a different ordinary person in the early minutes of a zombie outbreak before most people understand what is happening. No single protagonist. No plot armor.
+
+**Target audience:** Horror fans, survival fiction fans, Walking Dead / 28 Days Later audiences, "What would you do?" community
+
+**Platform fit:** TikTok and YouTube Shorts (3–90 seconds, self-contained), with longer cuts for YouTube
+
+---
+
+### The "No Plot Armor" Rule
+
+The defining creative constraint: no character is guaranteed to survive. Because each video follows a different person in a different location, the audience never knows if this particular person makes it. This creates genuine tension — unlike traditional horror where the audience knows the main character will survive at least until the final act.
+
+Half the time (roughly), the character does not survive the video.
+
+This also means: no heroes, no special skills, no lucky coincidences. The character makes a plausible human decision under extreme stress, and the outcome follows from that decision realistically.
+
+---
+
+### The Perspective Engine
+
+Every video is a new POV. The situation brief drives the generation prompt.
+
+**Situation brief template:**
+> "You are [ordinary person] at [specific everyday location]. [Inciting event — power cuts, screaming, something wrong in the crowd]. You have [X seconds] to decide: [Option A] or [Option B]. You do not know what is happening yet."
+
+**Starter location list:**
+- Grocery store (power goes out, people start panicking in produce section)
+- Gridlocked highway (drivers abandoning cars, something approaching from behind)
+- Top floor of an office building (looking down at a street that has gone chaotic)
+- School pickup line (parents and children, something wrong at the school entrance)
+- Hospital waiting room (the staff suddenly stop coming back out)
+- Subway car mid-tunnel (train stops, lights go out)
+- Movie theater (emergency broadcast interrupts the film)
+- Stadium at a sporting event (something happens at field level)
+- Cruise ship deck (can see the coast, something is very wrong on shore)
+- Apartment complex (sirens, neighbors acting strangely in the hallway)
+
+Expand continuously. The format is infinitely repeatable because the location and person change every time.
+
+---
+
+### Aesthetic Direction
+
+| Element | Target |
+|---|---|
+| Camera style | POV / body-cam — shaky, handheld, claustrophobic |
+| Color grade | Cold, desaturated — high contrast shadows, bleached highlights |
+| Film grain | High ISO noise — feels real, not polished |
+| Sound design | Sirens in distance, unintelligible screaming, confusion; no cinematic score |
+| Pacing | Slow build → sudden chaos → cut to black or ambiguous outcome |
+
+Reference films: *28 Days Later*, *Cloverfield*, early *The Walking Dead* (Season 1 street scenes), *World War Z* crowd sequences
+
+**What to avoid:** jump scares as the primary hook, gore/graphic violence, clear monster designs (ambiguity is scarier), anything that reads as gratuitous rather than visceral.
+
+---
+
+### Engagement Mechanic
+
+Pin a comment on every video:
+> "What would you have done? Vote below ↓"
+
+Follow up with a "What actually happens next" continuation video for the highest-engagement scenarios. This creates a feedback loop where the audience directs the content.
+
+TikTok poll sticker on every video: two options matching the decision the character faced.
+
+---
+
+### Title Formula
+
+`You're at [location]. The outbreak just started. What do you do?`
+
+or
+
+`POV: You're [doing ordinary thing] when it starts.`
+
+Keep it second-person — "you" pulls the viewer into the scenario immediately.
