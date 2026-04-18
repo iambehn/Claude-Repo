@@ -84,9 +84,15 @@ def _fetch_clip_metadata(
     Each dict contains the fields needed by the rank_looker and download stages:
     url, broadcaster_id, broadcaster_name, title, view_count, duration, created_at.
     """
+    params: dict = {"game_id": game_id, "first": min(count, 100)}
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours) if max_age_hours else None
+    if cutoff:
+        # Filter server-side so Twitch returns only recent clips, not all-time top clips
+        params["started_after"] = cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     resp = requests.get(
         _TWITCH_CLIPS_URL,
-        params={"game_id": game_id, "first": min(count, 100)},
+        params=params,
         headers={"Client-Id": client_id, "Authorization": f"Bearer {token}"},
         timeout=15,
     )
@@ -95,7 +101,6 @@ def _fetch_clip_metadata(
 
     metas = []
     skipped_stale = 0
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours) if max_age_hours else None
 
     for c in clips:
         if not c.get("url"):
