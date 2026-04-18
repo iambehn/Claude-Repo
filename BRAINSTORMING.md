@@ -15,6 +15,116 @@ Nothing here is committed to — it's reference material for when the time comes
 
 ---
 
+## Future Channel Archetypes — AI-Generated Content
+
+These archetypes don't use Twitch clips at all. Content is fully generated using AI video tools (Luma AI, Runway Gen-3/4). They are separate channels from the gaming pipeline and would use a different production workflow.
+
+---
+
+### The Duelist — Cinematic AI Combat
+
+**Premise:** Short-form cinematic duels between warriors, soldiers, and fighters from different cultures, time periods, and skill traditions. Fully AI-generated — no gameplay footage.
+
+**Target audience:** History fans, martial arts fans, "versus" and "what-if" communities, action movie fans.
+
+**Platform fit:** YouTube Shorts (hook + outcome), TikTok (curiosity loop), YouTube long-form (extended choreography).
+
+**AI tools:**
+- Luma AI — best for realistic physics and human movement
+- Runway Gen-3 / Gen-4 — best for cinematic lighting and choreographed sequences
+- ElevenLabs — authentic weapon sounds, ambient audio, layered in post
+
+**The Prompt Matrix — every video is built from two components:**
+
+| Component | Controls |
+|---|---|
+| Visual | Setting, lighting, clothing, weapon aesthetics, camera style |
+| Choreography | Fight pacing, momentum swings, counters, final exchange |
+
+Visual prompt structure:
+> "Cinematic 4K, realistic textures, [specific location — e.g. Scottish Highlands at dusk]. A duel between [Fighter A with authentic detail] and [Fighter B with authentic detail]. Dynamic handheld camera with slow-motion impacts. No gore or graphic injury."
+
+Choreography structure:
+> "The fight is back-and-forth — [Fighter A] opens with [technique], [Fighter B] counters with [move]. Momentum shifts twice before a decisive final exchange. Dramatic lighting at the climax."
+
+**Production rules:**
+- Fight must be competitive — 2–3 momentum swings minimum, no one-sided stomp
+- Location must be distinct and visually interesting, varied between videos
+- Clothing and weapons must be authentic to each fighter's background — research this
+- Camera moves through the scene; slow-motion on impact moments
+- No gore, no graphic injury — violence is cinematic/implied, platform-safe
+
+**Title formula:** `[Fighter A] vs [Fighter B] — Who wins?`
+Simple, searchable, algorithm-friendly. The subject matter surfaces it to the right audience.
+
+**Starter matchup matrix:**
+
+| Fighter A | Fighter B | Location |
+|---|---|---|
+| Samurai | Viking | Coastal Norse cliff |
+| Spartan | Zulu Warrior | Open savanna |
+| Ninja | Ottoman Janissary | Istanbul rooftop |
+| Medieval Knight | Mongolian Horse Archer | Steppe plains |
+| Shaolin Monk | Apache Warrior | Desert canyon |
+| Roman Legionnaire | Celtic Berserker | Forest clearing |
+| Maasai Warrior | Gurkha Soldier | East African highland |
+
+Expand the matrix over time; introduce multi-way duels (e.g. three-way) once the format is proven.
+
+---
+
+### Night Zero — Zombie Outbreak Anthology
+
+**Premise:** Short cinematic vignettes showing ordinary people caught in the opening minutes of a zombie outbreak — before most people understand what is happening. Third-person perspective, like a film scene. Event-driven — the chaos and the decisions characters are forced into drive the story, not backstory or character development.
+
+**Target audience:** Horror fans, survival fiction fans, Walking Dead / 28 Days Later audiences.
+
+**Platform fit:** TikTok and YouTube Shorts (self-contained 30–90 second scenes), longer cuts for YouTube.
+
+**The "No Plot Armor" rule:** No character is guaranteed to survive. Because each video is a standalone scene from a different person's perspective, the audience never knows whether this particular person makes it. The outcome follows from the decision realistically — there are no lucky coincidences. This creates genuine tension that traditional horror can't deliver because viewers always expect the main character to survive.
+
+**The Perspective Engine — each video is a new scenario:**
+
+The situation brief drives the generation prompt:
+> "[Ordinary person] is at [specific everyday location]. [Inciting event — something wrong in the crowd, power cuts, people running]. The character doesn't know what's happening yet. In the next [X seconds], they have to react."
+
+The story is event-driven from there — what the character does, and what happens to them because of it.
+
+**Starter location list:**
+- Grocery store — power cuts, screaming from the produce section
+- Gridlocked highway — drivers abandoning cars, something approaching from behind
+- Top floor of an office building — looking down at a street that has gone chaotic
+- School pickup line — something wrong at the school entrance
+- Hospital waiting room — staff stop coming back out
+- Subway car mid-tunnel — train stops, lights go out
+- Movie theater — emergency broadcast interrupts the film
+- Stadium at a sporting event — something happens at field level
+- Cruise ship deck — coast visible, something very wrong on shore
+- Apartment complex hallway — sirens, neighbors acting strangely
+
+**Aesthetic direction:**
+
+| Element | Target |
+|---|---|
+| Camera style | Handheld, grounded — not body-cam, but not polished either |
+| Color grade | Cold, desaturated — high contrast shadows, bleached highlights |
+| Film grain | Intentional noise — feels visceral, not cinematic |
+| Sound design | Environmental realism: distant sirens, crowds, confusion — no orchestral score |
+| Pacing | Slow build into sudden chaos; no clean resolution |
+
+Reference: *28 Days Later* (opening), *Cloverfield* (crowd sequences), *The Walking Dead* Season 1 street scenes.
+
+**What to avoid:** jump scares as the primary hook, graphic gore, clearly visible monster designs (ambiguity is more effective), anything gratuitous. Keep it visceral and emotional, not exploitative.
+
+**Title formula:**
+`The [location]. The first night. Nobody knew yet.`
+or
+`[City]. Hour one of the outbreak.`
+
+Third-person, observational framing — positions the viewer as watching history unfold rather than being in it.
+
+---
+
 ## Systems Thinking — Filters and Templates
 
 Filters and templates are two mechanisms for removing human decision points from a workflow so work becomes repeatable instead of constantly re-decided.
