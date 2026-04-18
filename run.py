@@ -98,7 +98,18 @@ def run_pipeline_for_game(game: str, config: dict) -> None:
         # Weapon Detector: identify active weapon from HUD icon ROI.
         # Uses kill_timestamps from kill_feed meta when frame_sample: "kill_timestamps".
         if config.get("weapon_detector", {}).get("enabled", False):
-            run_weapon_detector(Path(clip_path), game, config)
+            wd_result = run_weapon_detector(Path(clip_path), game, config)
+            if (
+                config["weapon_detector"].get("require_detection", False)
+                and not wd_result.get("weapon_id")
+            ):
+                logger.info(
+                    f"[weapon_detector] No weapon detected in {Path(clip_path).name} "
+                    f"— quarantining (require_detection=true)."
+                )
+                from utils.file_utils import move_to_quarantine
+                move_to_quarantine(Path(clip_path), game, config)
+                continue
 
         transcript = run_transcription(clip_path, config)
         if transcript is None:

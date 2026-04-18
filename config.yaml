@@ -339,6 +339,7 @@ weapon_detector:
   frame_sample: "middle"
   match_mode: "color"       # "color" | "grayscale" (use grayscale for semi-transparent HUDs)
   icon_dir: "assets/weapon_icons"
+  require_detection: false  # true = quarantine clip if no weapon/hero is identified
   games:
     deadlock:
       # Hero portrait — top-left circle. Each hero has one weapon, so portrait = weapon.
