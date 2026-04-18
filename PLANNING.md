@@ -389,17 +389,17 @@ OVERSUPPLY multiplier: 1.2 · SCARCITY multiplier: 0.8
 
 ### Implementation Checklist
 
-- [ ] Game-specific rank API hooks (Deadlock, Marvel Rivals / Tracker.gg)
-- [ ] Title NLP sweat keyword dictionary + Social Rank Proxy + smurf detection
+- [x] Game-specific rank API hooks (Deadlock, Marvel Rivals / Tracker.gg) — `pipeline/rank_looker.py` heuristic + api modes
+- [x] Title NLP sweat keyword dictionary + Social Rank Proxy + smurf detection — `rank_looker.py` heuristic mode
+- [x] OpenCV Kill-Feed Parser — `pipeline/kill_feed.py`; resolution normalization, ROI crop, color mask, MOG2, template match, edge (Canny) fallback all implemented
+- [x] Audio Energy Check — `pipeline/audio_detector.py`; FFmpeg astats + numpy Z-score spike detection; frequency bandpass filter; multi-kill classification
+- [x] Auto-tag distribution metadata from extracted keywords — `utils/metadata_injector.py` embeds title + hashtags from title_engine into MP4 container tags
 - [ ] Depth Sampling (100th clip view count → Market Condition)
 - [ ] CPD (Clips Per Day) calculation + Deadly Plateau detection → Exit Strategy trigger
-- [ ] OpenCV Kill-Feed Parser (resolution normalization to 1080p, ROI crop, color mask, MOG2, template match, edge fallback)
-- [ ] Audio Energy Check: FFmpeg `volumedetect` on kill-feed window; configurable `audio_spike_db_delta` per game
 - [ ] Optical flow frame selection for AI Classifier (highest motion frame per timestamp)
-- [ ] AI prompt + Final_Score formula
+- [ ] Final_Score formula: combine kill_feed sweat_score + AI highlight_score into single weighted score
 - [ ] Market Density Monitor + Strictness Slider
 - [ ] Vault/Stockpile clip banking logic with 7-day `meta_expiry` tag
-- [ ] Auto-tag distribution metadata from extracted keywords
 
 ---
 
@@ -858,7 +858,7 @@ Minimum compose services: `app` (pipeline runner), `redis` (queue broker, when P
 
 ---
 
-## New Channel Archetype Protocol
+## New Channel Setup Protocol
 
 A repeatable onboarding blueprint for launching any new game channel or content archetype. Run this checklist in order when adding a new game or channel type.
 
