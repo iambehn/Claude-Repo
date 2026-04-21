@@ -1,0 +1,151 @@
+entities:
+  # =====================================================================
+  # Assault Rifles
+  # =====================================================================
+  - id: kettle
+    kind: weapon
+    display_name: "Kettle"
+    role: assault_rifle
+    aliases: ["kettle"]
+  - id: rattler
+    kind: weapon
+    display_name: "Rattler"
+    role: assault_rifle
+    aliases: ["rattler"]
+  - id: arpeggio
+    kind: weapon
+    display_name: "Arpeggio"
+    role: assault_rifle
+    aliases: ["arpeggio"]
+  - id: tempest
+    kind: weapon
+    display_name: "Tempest"
+    role: assault_rifle
+    aliases: ["tempest"]
+  - id: bettina
+    kind: weapon
+    display_name: "Bettina"
+    role: assault_rifle
+    aliases: ["bettina"]
+
+  # =====================================================================
+  # Battle Rifles
+  # =====================================================================
+  - id: ferro
+    kind: weapon
+    display_name: "Ferro"
+    role: battle_rifle
+    aliases: ["ferro"]
+  - id: renegade
+    kind: weapon
+    display_name: "Renegade"
+    role: battle_rifle
+    aliases: ["renegade"]
+  - id: aphelion
+    kind: weapon
+    display_name: "Aphelion"
+    role: battle_rifle
+    aliases: ["aphelion"]
+
+  # =====================================================================
+  # SMGs
+  # =====================================================================
+  - id: stitcher
+    kind: weapon
+    display_name: "Stitcher"
+    role: smg
+    aliases: ["stitcher"]
+  - id: canto
+    kind: weapon
+    display_name: "Canto"
+    role: smg
+    aliases: ["canto"]
+  - id: bobcat
+    kind: weapon
+    display_name: "Bobcat"
+    role: smg
+    aliases: ["bobcat"]
+
+  # =====================================================================
+  # Shotguns
+  # =====================================================================
+  - id: il_toro
+    kind: weapon
+    display_name: "Il Toro"
+    role: shotgun
+    aliases: ["il toro", "toro"]
+  - id: vulcano
+    kind: weapon
+    display_name: "Vulcano"
+    role: shotgun
+    aliases: ["vulcano"]
+  - id: dolabra
+    kind: weapon
+    display_name: "Dolabra"
+    role: shotgun
+    aliases: ["dolabra"]
+
+  # =====================================================================
+  # Pistols
+  # =====================================================================
+  - id: hairpin
+    kind: weapon
+    display_name: "Hairpin"
+    role: pistol
+    aliases: ["hairpin"]
+  - id: burletta
+    kind: weapon
+    display_name: "Burletta"
+    role: pistol
+    aliases: ["burletta"]
+  - id: venator
+    kind: weapon
+    display_name: "Venator"
+    role: pistol
+    aliases: ["venator"]
+
+  # =====================================================================
+  # Hand Cannons
+  # =====================================================================
+  - id: anvil
+    kind: weapon
+    display_name: "Anvil"
+    role: hand_cannon
+    aliases: ["anvil"]
+
+  # =====================================================================
+  # LMGs
+  # =====================================================================
+  - id: torrente
+    kind: weapon
+    display_name: "Torrente"
+    role: lmg
+    aliases: ["torrente"]
+
+  # =====================================================================
+  # Sniper Rifles
+  # =====================================================================
+  - id: osprey
+    kind: weapon
+    display_name: "Osprey"
+    role: sniper_rifle
+    aliases: ["osprey"]
+  - id: jupiter
+    kind: weapon
+    display_name: "Jupiter"
+    role: sniper_rifle
+    aliases: ["jupiter"]
+
+  # =====================================================================
+  # Specials
+  # =====================================================================
+  - id: hullcracker
+    kind: weapon
+    display_name: "Hullcracker"
+    role: special
+    aliases: ["hullcracker"]
+  - id: equalizer
+    kind: weapon
+    display_name: "Equalizer"
+    role: special
+    aliases: ["equalizer"]

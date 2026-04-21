@@ -21,10 +21,10 @@ import argparse
 import sys
 from pathlib import Path
 
-import yaml
-
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+from pipeline import game_pack  # noqa: E402
 
 TARGET_WIDTH = 1920
 TARGET_HEIGHT = 1080
@@ -53,13 +53,11 @@ def main() -> None:
         print("ERROR: OpenCV not installed. Run: pip install opencv-python-headless", file=sys.stderr)
         sys.exit(1)
 
-    config_path = ROOT / args.config
-    if not config_path.exists():
-        print(f"ERROR: config not found at {config_path}", file=sys.stderr)
+    try:
+        pack = game_pack.load(args.game)
+    except (FileNotFoundError, game_pack.GamePackError) as exc:
+        print(f"ERROR: could not load game pack '{args.game}': {exc}", file=sys.stderr)
         sys.exit(1)
-
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
 
     clip_path = Path(args.clip)
     if not clip_path.exists():
@@ -90,10 +88,9 @@ def main() -> None:
         rois_drawn = 0
 
         # Kill-feed ROI
-        kf_cfg = config.get("kill_feed", {}).get("games", {}).get(args.game)
-        if kf_cfg:
-            roi = kf_cfg.get("roi", {})
-            rx, ry, rw, rh = roi.get("x", 0), roi.get("y", 0), roi.get("w", 100), roi.get("h", 100)
+        kf_roi = pack.hud.get("kill_feed")
+        if kf_roi:
+            rx, ry, rw, rh = kf_roi["x"], kf_roi["y"], kf_roi["w"], kf_roi["h"]
             color = _ROI_STYLES[0][1]
             cv2.rectangle(frame, (rx, ry), (rx + rw, ry + rh), color, 2)
             cv2.putText(frame, "kill_feed ROI", (rx, max(ry - 6, 0)),
@@ -101,10 +98,9 @@ def main() -> None:
             rois_drawn += 1
 
         # Weapon-detector ROI
-        wd_game = config.get("weapon_detector", {}).get("games", {}).get(args.game)
-        if wd_game:
-            roi = wd_game.get("roi", {})
-            rx, ry, rw, rh = roi.get("x", 0), roi.get("y", 0), roi.get("w", 100), roi.get("h", 80)
+        wd_roi = pack.hud.get("weapon_detector")
+        if wd_roi:
+            rx, ry, rw, rh = wd_roi["x"], wd_roi["y"], wd_roi["w"], wd_roi["h"]
             color = _ROI_STYLES[1][1]
             cv2.rectangle(frame, (rx, ry), (rx + rw, ry + rh), color, 2)
             cv2.putText(frame, "weapon ROI", (rx, max(ry - 6, 0)),
@@ -116,7 +112,7 @@ def main() -> None:
         print(f"Saved preview: {out_path.relative_to(ROOT)}  ({rois_drawn} ROI(s) drawn)")
         print(f"  Sampled at t={sample_time:.1f}s of {duration:.1f}s total")
         if rois_drawn == 0:
-            print("  WARNING: No ROIs found for this game in config.yaml")
+            print(f"  WARNING: No ROIs found in assets/games/{args.game}/hud.yaml")
     finally:
         cap.release()
 

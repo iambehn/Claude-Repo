@@ -1,0 +1,60 @@
+moments:
+  - id: triple_kill
+    category: multi_kill
+    description: "Three or more kills within a 5-second window."
+    evidence:
+      kill_count_min: 3
+      within_window_seconds: 5
+    score_weight: 1.30
+
+  - id: quad_or_better
+    category: multi_kill
+    description: "Four or more kills in rapid succession — team-wipe territory."
+    evidence:
+      kill_count_min: 4
+      within_window_seconds: 6
+    score_weight: 1.50
+
+  - id: ace
+    category: team_wipe
+    description: "Six kills in one life — full ace."
+    evidence:
+      kill_count_min: 6
+    score_weight: 1.75
+
+  - id: headshot_streak
+    category: precision
+    description: "Three or more headshots in the clip."
+    evidence:
+      headshot_count_min: 3
+    score_weight: 1.20
+
+  - id: clutch_low_hp
+    category: clutch
+    description: "Player takes a fight at low HP and wins — audio spike + kill follows damage lull."
+    evidence:
+      audio_spike_after_lull: true
+      kill_count_min: 1
+    score_weight: 1.25
+
+  - id: ultimate_kill
+    category: ability_play
+    description: "Kill coincides with an ultimate voice line or UI flash."
+    evidence:
+      ability_class: ultimate
+      kill_count_min: 1
+    score_weight: 1.20
+
+  - id: last_second_kill
+    category: timing
+    description: "Final kill happens in last 2 seconds of clip — satisfying payoff ending."
+    evidence:
+      kill_in_final_seconds: 2
+    score_weight: 1.15
+
+  - id: early_hook_kill
+    category: hook
+    description: "First kill happens in first 1.5 seconds — instant payoff."
+    evidence:
+      kill_within_seconds: 1.5
+    score_weight: 1.10

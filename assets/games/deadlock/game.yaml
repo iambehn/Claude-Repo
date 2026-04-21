@@ -1,0 +1,15 @@
+game_id: deadlock
+display_name: "Deadlock"
+genre: "moba_shooter"
+camera_mode: "third_person"
+ui_version: "beta-2024.12"
+
+detectors:
+  kill_feed: true
+  weapon_detector: true
+  audio_detector: true
+
+resolution_profiles:
+  - "1920x1080"
+  - "2560x1440"
+  - "3840x2160"

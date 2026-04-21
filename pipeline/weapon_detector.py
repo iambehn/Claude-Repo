@@ -13,12 +13,10 @@ Config block (config.yaml → weapon_detector):
     confidence_threshold: 0.80
     frame_sample: "middle"      # "middle" | "kill_timestamps" | "all"
     icon_dir: "assets/weapon_icons"
-    games:
-      deadlock:
-        roi: {x: 1600, y: 950, w: 150, h: 80}
-        weapons:
-          sniper_rifle: "Sniper Rifle"   # weapon_id: display_name
-          smg_01: "SMG"
+
+Per-game weapon/hero tables + ROI live in the game pack:
+    assets/games/<slug>/hud.yaml       →  rois.weapon_detector
+    assets/games/<slug>/entities.yaml  →  entities with kind: hero|weapon
 
 Building the icon library:
     1. Run a clip through the pipeline with kill_feed.enabled: true so
@@ -26,7 +24,7 @@ Building the icon library:
     2. Use frame_sample: "kill_timestamps" to land on action frames.
     3. Manually crop the weapon icon area from a frame and save it as:
            assets/weapon_icons/{game}/{weapon_id}.png
-    4. Add the weapon_id → display_name mapping to config.yaml.
+    4. Add the entity to assets/games/<slug>/entities.yaml.
 """
 
 from __future__ import annotations
@@ -34,6 +32,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from pipeline import game_pack
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -92,20 +91,26 @@ def run_weapon_detector(clip_path: Path, game: str, config: dict) -> dict:
     if not wd_cfg.get("enabled", False):
         return _write_and_return(meta_path, _disabled("weapon_detector disabled"))
 
-    game_cfg = wd_cfg.get("games", {}).get(game)
-    if not game_cfg:
-        return _write_and_return(meta_path, _disabled(f"no config for game '{game}'"))
+    try:
+        pack = game_pack.load(game)
+    except (FileNotFoundError, game_pack.GamePackError) as exc:
+        return _write_and_return(meta_path, _disabled(f"game pack load failed: {exc}"))
+
+    roi = pack.hud.get("weapon_detector")
+    if roi is None:
+        return _write_and_return(meta_path, _disabled(f"no weapon_detector roi in pack '{game}'"))
 
     icon_dir = Path(wd_cfg.get("icon_dir", _DEFAULT_ICON_DIR)) / game
-    weapon_names = game_cfg.get("weapons", {})
+    # Back-compat with legacy shape: pass {id: display_name} to _load_templates.
+    # Entities of any kind (hero or weapon) map to an icon lookup; weapon_detector
+    # only cares that an icon PNG exists per id.
+    weapon_names = pack.entities.display_name_map()
     match_mode = wd_cfg.get("match_mode", "color")   # "color" | "grayscale"
     templates = _load_templates(icon_dir, weapon_names, match_mode)
 
     if not templates:
         logger.debug(f"[weapon_detector] No icons in {icon_dir} — skipping.")
         return _write_and_return(meta_path, _disabled("no weapon icon assets"))
-
-    roi = game_cfg.get("roi", {})
     threshold = float(wd_cfg.get("confidence_threshold", _DEFAULT_CONFIDENCE))
     frame_sample = wd_cfg.get("frame_sample", "middle")
 

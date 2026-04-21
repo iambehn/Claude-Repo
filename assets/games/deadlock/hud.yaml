@@ -1,0 +1,27 @@
+anchors:
+  top_right: {x_pct: 1.0, y_pct: 0.0}
+  top_left: {x_pct: 0.0, y_pct: 0.0}
+
+rois:
+  kill_feed:
+    anchor: top_right
+    x_pct: 0.84375
+    y_pct: 0.01389
+    w_pct: 0.15625
+    h_pct: 0.32407
+    pixel_spike_threshold: 50
+    kill_colors:
+      - lower: [0, 0, 175]
+        upper: [180, 55, 255]
+    headshot_colors:
+      - lower: [15, 100, 190]
+        upper: [45, 255, 255]
+
+  weapon_detector:
+    anchor: top_left
+    x_pct: 0.14844
+    y_pct: 0.00278
+    w_pct: 0.06771
+    h_pct: 0.10000
+
+templates: []

@@ -1,0 +1,25 @@
+composite:
+  context_weight: 0.30
+  hook_weight: 0.25
+  postability_weight: 0.45
+
+thresholds:
+  accept: 0.65
+  reject: 0.35
+  min_context: 0.40
+  hook_gate: 0.40
+  reliable_confidence: 0.60
+  hook_window_seconds: 1.5
+
+context_inputs:
+  weapon_confidence: 0.40
+  kill_detection_saturation: 0.35
+  audio_saturation: 0.25
+
+postability_inputs:
+  sweat_score: 0.25
+  audio_energy: 0.15
+  motion_level: 0.15
+  keyword_count: 0.10
+  weapon_confidence: 0.15
+  audio_spike_count: 0.20

@@ -1,0 +1,257 @@
+entities:
+  # =====================================================================
+  # Vanguards
+  # =====================================================================
+  - id: angela
+    kind: hero
+    display_name: "Angela"
+    role: vanguard
+    aliases: ["angela"]
+  - id: bruce_banner
+    kind: hero
+    display_name: "Bruce Banner"
+    role: vanguard
+    aliases: ["bruce banner", "hulk", "banner"]
+  - id: captain_america
+    kind: hero
+    display_name: "Captain America"
+    role: vanguard
+    aliases: ["captain america", "cap", "steve rogers"]
+  - id: deadpool
+    kind: hero
+    display_name: "Deadpool"
+    role: vanguard
+    aliases: ["deadpool", "wade wilson"]
+  - id: doctor_strange
+    kind: hero
+    display_name: "Doctor Strange"
+    role: vanguard
+    aliases: ["doctor strange", "dr strange", "strange"]
+  - id: emma_frost
+    kind: hero
+    display_name: "Emma Frost"
+    role: vanguard
+    aliases: ["emma frost", "emma"]
+  - id: groot
+    kind: hero
+    display_name: "Groot"
+    role: vanguard
+    aliases: ["groot"]
+  - id: magneto
+    kind: hero
+    display_name: "Magneto"
+    role: vanguard
+    aliases: ["magneto", "eric lehnsherr"]
+  - id: peni_parker
+    kind: hero
+    display_name: "Peni Parker"
+    role: vanguard
+    aliases: ["peni parker", "peni"]
+  - id: rogue
+    kind: hero
+    display_name: "Rogue"
+    role: vanguard
+    aliases: ["rogue"]
+  - id: the_thing
+    kind: hero
+    display_name: "The Thing"
+    role: vanguard
+    aliases: ["the thing", "thing", "ben grimm"]
+  - id: thor
+    kind: hero
+    display_name: "Thor"
+    role: vanguard
+    aliases: ["thor"]
+  - id: venom
+    kind: hero
+    display_name: "Venom"
+    role: vanguard
+    aliases: ["venom", "eddie brock"]
+
+  # =====================================================================
+  # Duelists
+  # =====================================================================
+  - id: black_cat
+    kind: hero
+    display_name: "Black Cat"
+    role: duelist
+    aliases: ["black cat", "felicia hardy"]
+  - id: black_panther
+    kind: hero
+    display_name: "Black Panther"
+    role: duelist
+    aliases: ["black panther", "t'challa", "tchalla"]
+  - id: black_widow
+    kind: hero
+    display_name: "Black Widow"
+    role: duelist
+    aliases: ["black widow", "widow", "natasha"]
+  - id: blade
+    kind: hero
+    display_name: "Blade"
+    role: duelist
+    aliases: ["blade"]
+  - id: daredevil
+    kind: hero
+    display_name: "Daredevil"
+    role: duelist
+    aliases: ["daredevil", "matt murdock"]
+  - id: elsa_bloodstone
+    kind: hero
+    display_name: "Elsa Bloodstone"
+    role: duelist
+    aliases: ["elsa bloodstone", "elsa"]
+  - id: hawkeye
+    kind: hero
+    display_name: "Hawkeye"
+    role: duelist
+    aliases: ["hawkeye", "clint barton"]
+  - id: hela
+    kind: hero
+    display_name: "Hela"
+    role: duelist
+    aliases: ["hela"]
+  - id: human_torch
+    kind: hero
+    display_name: "Human Torch"
+    role: duelist
+    aliases: ["human torch", "johnny storm", "torch"]
+  - id: iron_fist
+    kind: hero
+    display_name: "Iron Fist"
+    role: duelist
+    aliases: ["iron fist", "danny rand"]
+  - id: iron_man
+    kind: hero
+    display_name: "Iron Man"
+    role: duelist
+    aliases: ["iron man", "tony stark"]
+  - id: magik
+    kind: hero
+    display_name: "Magik"
+    role: duelist
+    aliases: ["magik", "illyana"]
+  - id: mister_fantastic
+    kind: hero
+    display_name: "Mister Fantastic"
+    role: duelist
+    aliases: ["mister fantastic", "mr fantastic", "reed richards"]
+  - id: moon_knight
+    kind: hero
+    display_name: "Moon Knight"
+    role: duelist
+    aliases: ["moon knight", "marc spector"]
+  - id: namor
+    kind: hero
+    display_name: "Namor"
+    role: duelist
+    aliases: ["namor"]
+  - id: phoenix
+    kind: hero
+    display_name: "Phoenix"
+    role: duelist
+    aliases: ["phoenix", "jean grey"]
+  - id: psylocke
+    kind: hero
+    display_name: "Psylocke"
+    role: duelist
+    aliases: ["psylocke", "betsy braddock"]
+  - id: scarlet_witch
+    kind: hero
+    display_name: "Scarlet Witch"
+    role: duelist
+    aliases: ["scarlet witch", "wanda", "wanda maximoff"]
+  - id: spider_man
+    kind: hero
+    display_name: "Spider-Man"
+    role: duelist
+    aliases: ["spider-man", "spider man", "spiderman", "peter parker"]
+  - id: squirrel_girl
+    kind: hero
+    display_name: "Squirrel Girl"
+    role: duelist
+    aliases: ["squirrel girl", "doreen"]
+  - id: star_lord
+    kind: hero
+    display_name: "Star-Lord"
+    role: duelist
+    aliases: ["star-lord", "star lord", "starlord", "peter quill"]
+  - id: storm
+    kind: hero
+    display_name: "Storm"
+    role: duelist
+    aliases: ["storm", "ororo"]
+  - id: the_punisher
+    kind: hero
+    display_name: "The Punisher"
+    role: duelist
+    aliases: ["the punisher", "punisher", "frank castle"]
+  - id: winter_soldier
+    kind: hero
+    display_name: "Winter Soldier"
+    role: duelist
+    aliases: ["winter soldier", "bucky"]
+  - id: wolverine
+    kind: hero
+    display_name: "Wolverine"
+    role: duelist
+    aliases: ["wolverine", "logan"]
+
+  # =====================================================================
+  # Strategists
+  # =====================================================================
+  - id: adam_warlock
+    kind: hero
+    display_name: "Adam Warlock"
+    role: strategist
+    aliases: ["adam warlock", "adam"]
+  - id: cloak_and_dagger
+    kind: hero
+    display_name: "Cloak & Dagger"
+    role: strategist
+    aliases: ["cloak and dagger", "cloak & dagger", "cloak", "dagger"]
+  - id: gambit
+    kind: hero
+    display_name: "Gambit"
+    role: strategist
+    aliases: ["gambit", "remy"]
+  - id: invisible_woman
+    kind: hero
+    display_name: "Invisible Woman"
+    role: strategist
+    aliases: ["invisible woman", "sue storm", "sue"]
+  - id: jeff_the_land_shark
+    kind: hero
+    display_name: "Jeff the Land Shark"
+    role: strategist
+    aliases: ["jeff the land shark", "jeff", "land shark"]
+  - id: loki
+    kind: hero
+    display_name: "Loki"
+    role: strategist
+    aliases: ["loki"]
+  - id: luna_snow
+    kind: hero
+    display_name: "Luna Snow"
+    role: strategist
+    aliases: ["luna snow", "luna"]
+  - id: mantis
+    kind: hero
+    display_name: "Mantis"
+    role: strategist
+    aliases: ["mantis"]
+  - id: rocket_raccoon
+    kind: hero
+    display_name: "Rocket Raccoon"
+    role: strategist
+    aliases: ["rocket raccoon", "rocket"]
+  - id: ultron
+    kind: hero
+    display_name: "Ultron"
+    role: strategist
+    aliases: ["ultron"]
+  - id: white_fox
+    kind: hero
+    display_name: "White Fox"
+    role: strategist
+    aliases: ["white fox", "ami han"]

@@ -58,23 +58,36 @@ def get_game_from_path(clip_path: str | Path) -> str | None:
     return None
 
 
-def move_to_quarantine(clip_path: str | Path, game: str, config: dict) -> Path:
-    """Move a clip to the quarantine folder for the given game.
+QUARANTINE_REASONS = (
+    "default",
+    "missing_context",
+    "hook_not_resolved",
+    "low_confidence",
+    "ui_drift",
+    "needs_roi_template",
+)
 
-    Args:
-        clip_path: Current path to the clip file.
-        game: Game key (e.g. 'arc_raiders').
-        config: Full parsed config.yaml dict.
 
-    Returns:
-        New path of the clip in quarantine/{game}/.
+def move_to_quarantine(
+    clip_path: str | Path,
+    game: str,
+    config: dict,
+    reason: str = "default",
+) -> Path:
+    """Move a clip to a bucketed quarantine folder.
+
+    Clips are routed to quarantine/{game}/{reason}/ so enrichment work can be
+    targeted. Unknown reasons fall through to "default".
     """
+    if reason not in QUARANTINE_REASONS:
+        logger.warning(f"Unknown quarantine reason '{reason}', using 'default'")
+        reason = "default"
     src = Path(clip_path)
-    dest_dir = Path(config["paths"]["quarantine"], game)
+    dest_dir = Path(config["paths"]["quarantine"], game, reason)
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / src.name
     shutil.move(str(src), str(dest))
-    logger.info(f"Quarantined: {src.name} → {dest}")
+    logger.info(f"Quarantined ({reason}): {src.name} → {dest}")
     return dest
 
 

@@ -1,0 +1,29 @@
+anchors:
+  top_right: {x_pct: 1.0, y_pct: 0.0}
+  bottom_left: {x_pct: 0.0, y_pct: 1.0}
+  bottom_right: {x_pct: 1.0, y_pct: 1.0}
+
+rois:
+  kill_feed:
+    anchor: top_right
+    x_pct: 0.84375
+    y_pct: 0.00926
+    w_pct: 0.15625
+    h_pct: 0.35185
+    pixel_spike_threshold: 50
+    kill_colors:
+      - lower: [0, 0, 180]
+        upper: [180, 50, 255]
+    headshot_colors:
+      - lower: [15, 120, 200]
+        upper: [40, 255, 255]
+
+  weapon_detector:
+    anchor: bottom_left
+    x_pct: 0.03021
+    y_pct: 0.82870
+    w_pct: 0.06510
+    h_pct: 0.12500
+
+# Reserved for Phase 3 — template-matching assets per ROI.
+templates: []

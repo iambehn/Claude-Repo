@@ -38,8 +38,10 @@ from utils.file_utils import ensure_dirs
 from utils.logger import get_logger
 from utils.metadata_injector import inject_metadata
 
+from pipeline import game_pack
 from pipeline.ingestion import run_ingestion
 from pipeline.audio_detector import run_audio_detector
+from pipeline.clip_judge import run_clip_judge
 from pipeline.kill_feed import run_kill_feed_parser
 from pipeline.weapon_detector import run_weapon_detector
 from pipeline.title_engine import generate_title
@@ -108,7 +110,7 @@ def run_pipeline_for_game(game: str, config: dict) -> None:
                     f"— quarantining (require_detection=true)."
                 )
                 from utils.file_utils import move_to_quarantine
-                move_to_quarantine(Path(clip_path), game, config)
+                move_to_quarantine(Path(clip_path), game, config, reason="missing_context")
                 continue
 
         transcript = run_transcription(clip_path, config)
@@ -116,6 +118,18 @@ def run_pipeline_for_game(game: str, config: dict) -> None:
             logger.info(f"Skipping clip (language filter): {clip_path}")
             continue
         metadata = run_feature_extraction(clip_path, transcript, config)
+
+        # Composite Clip Judge — decides accept | reject | quarantine before any
+        # expensive downstream stage (FFmpeg render + Claude scoring). Short-circuits
+        # on a non-accept decision to save API cost.
+        worthiness = run_clip_judge(clip_path, game, config)
+        if worthiness.get("decision") != "accept":
+            logger.info(
+                f"[clip_judge] Skipping downstream stages for {Path(clip_path).name} "
+                f"(decision={worthiness.get('decision')})."
+            )
+            continue
+
         template = select_template(metadata, config)
         processed_path = run_processing(clip_path, template, metadata, config)
         score = run_scoring(processed_path, metadata, config)
@@ -263,6 +277,18 @@ def main() -> None:
         metavar="GAME",
         help="Assemble a montage from accepted clips for GAME (or 'all'). Requires montage.enabled: true in config.",
     )
+    group.add_argument(
+        "--validate-game-pack",
+        metavar="SLUG",
+        dest="validate_game_pack",
+        help="Validate assets/games/SLUG/ and exit 0 on pass, 1 on fail.",
+    )
+    group.add_argument(
+        "--init-game",
+        metavar="SLUG",
+        dest="init_game",
+        help="Scaffold a new assets/games/SLUG/ directory with placeholder YAML.",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -277,6 +303,39 @@ def main() -> None:
 
     config = load_config(args.config)
     ensure_dirs(config)
+
+    # --- Game-pack-only commands: handle before startup validation ---
+    if args.validate_game_pack:
+        slug = args.validate_game_pack
+        result = game_pack.validate(slug)
+        if result.ok:
+            logger.info(f"[game_pack:{slug}] OK")
+            for warning in result.warnings:
+                logger.warning(f"[game_pack:{slug}] warning: {warning}")
+            sys.exit(0)
+        for err in result.errors:
+            logger.error(f"[game_pack:{slug}] {err}")
+        sys.exit(1)
+
+    if args.init_game:
+        slug = args.init_game
+        try:
+            game_pack.init_scaffold(slug)
+        except game_pack.GamePackError as exc:
+            logger.error(f"[init_game:{slug}] {exc}")
+            sys.exit(1)
+        logger.info(
+            f"Scaffolded assets/games/{slug}/. Next: calibrate HUD ROIs and fill entities.yaml."
+        )
+        sys.exit(0)
+
+    # --- Pipeline-running commands: validate every game pack first ---
+    if args.montage or args.game or args.watch:
+        try:
+            game_pack.ensure_game_packs_valid(config)
+        except game_pack.GamePackError as exc:
+            logger.error(f"Game-pack validation failed:\n{exc}")
+            sys.exit(1)
 
     if args.montage:
         games_to_process = list(config["games"].keys()) if args.montage == "all" else [args.montage]

@@ -1,0 +1,191 @@
+entities:
+  - id: abrams
+    kind: hero
+    display_name: "Abrams"
+    role: tank
+    aliases: ["abrams"]
+  - id: apollo
+    kind: hero
+    display_name: "Apollo"
+    role: dps
+    aliases: ["apollo"]
+  - id: bebop
+    kind: hero
+    display_name: "Bebop"
+    role: dps
+    aliases: ["bebop"]
+  - id: billy
+    kind: hero
+    display_name: "Billy"
+    role: dps
+    aliases: ["billy"]
+  - id: calico
+    kind: hero
+    display_name: "Calico"
+    role: dps
+    aliases: ["calico"]
+  - id: celeste
+    kind: hero
+    display_name: "Celeste"
+    role: dps
+    aliases: ["celeste"]
+  - id: the_doorman
+    kind: hero
+    display_name: "The Doorman"
+    role: dps
+    aliases: ["the doorman", "doorman"]
+  - id: drifter
+    kind: hero
+    display_name: "Drifter"
+    role: dps
+    aliases: ["drifter"]
+  - id: dynamo
+    kind: hero
+    display_name: "Dynamo"
+    role: support
+    aliases: ["dynamo"]
+  - id: graves
+    kind: hero
+    display_name: "Graves"
+    role: dps
+    aliases: ["graves"]
+  - id: grey_talon
+    kind: hero
+    display_name: "Grey Talon"
+    role: dps
+    aliases: ["grey talon"]
+  - id: haze
+    kind: hero
+    display_name: "Haze"
+    role: dps
+    aliases: ["haze"]
+  - id: holliday
+    kind: hero
+    display_name: "Holliday"
+    role: dps
+    aliases: ["holliday"]
+  - id: infernus
+    kind: hero
+    display_name: "Infernus"
+    role: dps
+    aliases: ["infernus"]
+  - id: ivy
+    kind: hero
+    display_name: "Ivy"
+    role: support
+    aliases: ["ivy"]
+  - id: kelvin
+    kind: hero
+    display_name: "Kelvin"
+    role: tank
+    aliases: ["kelvin"]
+  - id: lady_geist
+    kind: hero
+    display_name: "Lady Geist"
+    role: dps
+    aliases: ["lady geist"]
+  - id: lash
+    kind: hero
+    display_name: "Lash"
+    role: dps
+    aliases: ["lash"]
+  - id: mcginnis
+    kind: hero
+    display_name: "McGinnis"
+    role: dps
+    aliases: ["mcginnis"]
+  - id: mina
+    kind: hero
+    display_name: "Mina"
+    role: support
+    aliases: ["mina"]
+  - id: mirage
+    kind: hero
+    display_name: "Mirage"
+    role: dps
+    aliases: ["mirage"]
+  - id: mo_and_krill
+    kind: hero
+    display_name: "Mo & Krill"
+    role: tank
+    aliases: ["mo & krill", "mo and krill"]
+  - id: paige
+    kind: hero
+    display_name: "Paige"
+    role: dps
+    aliases: ["paige"]
+  - id: paradox
+    kind: hero
+    display_name: "Paradox"
+    role: dps
+    aliases: ["paradox"]
+  - id: pocket
+    kind: hero
+    display_name: "Pocket"
+    role: dps
+    aliases: ["pocket"]
+  - id: rem
+    kind: hero
+    display_name: "Rem"
+    role: dps
+    aliases: ["rem"]
+  - id: seven
+    kind: hero
+    display_name: "Seven"
+    role: dps
+    aliases: ["seven"]
+  - id: shiv
+    kind: hero
+    display_name: "Shiv"
+    role: dps
+    aliases: ["shiv"]
+  - id: silver
+    kind: hero
+    display_name: "Silver"
+    role: dps
+    aliases: ["silver"]
+  - id: sinclair
+    kind: hero
+    display_name: "Sinclair"
+    role: dps
+    aliases: ["sinclair"]
+  - id: venator
+    kind: hero
+    display_name: "Venator"
+    role: dps
+    aliases: ["venator"]
+  - id: victor
+    kind: hero
+    display_name: "Victor"
+    role: dps
+    aliases: ["victor"]
+  - id: vindicta
+    kind: hero
+    display_name: "Vindicta"
+    role: dps
+    aliases: ["vindicta"]
+  - id: viscous
+    kind: hero
+    display_name: "Viscous"
+    role: tank
+    aliases: ["viscous"]
+  - id: vyper
+    kind: hero
+    display_name: "Vyper"
+    role: dps
+    aliases: ["vyper"]
+  - id: warden
+    kind: hero
+    display_name: "Warden"
+    role: dps
+    aliases: ["warden"]
+  - id: wraith
+    kind: hero
+    display_name: "Wraith"
+    role: dps
+    aliases: ["wraith"]
+  - id: yamato
+    kind: hero
+    display_name: "Yamato"
+    role: dps
+    aliases: ["yamato"]

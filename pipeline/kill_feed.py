@@ -32,17 +32,9 @@ Config block (config.yaml → kill_feed):
     color_spike_factor: 5.0   # current pixels must be > factor × baseline to trigger
     min_pixel_mass: 50        # ignore color hits below this raw pixel count
     template_dir: "assets/kill_feed_templates"
-    games:
-      marvel_rivals:
-        roi: {x: 1620, y: 10, w: 300, h: 380}   # 1080p-normalised
-        kill_colors:
-          - lower: [0, 0, 180]       # HSV: near-white (kill feed text)
-            upper: [180, 50, 255]
-        headshot_colors:
-          - lower: [15, 120, 200]    # HSV: orange-yellow headshot highlight
-            upper: [40, 255, 255]
-        pixel_spike_threshold: 50
-      ...
+
+Per-game HUD configuration (rois.kill_feed + color bands) lives in:
+    assets/games/<slug>/hud.yaml  →  rois.kill_feed
 
 ROI calibration:
     To tune coordinates for a new game:
@@ -52,10 +44,10 @@ ROI calibration:
              ok, frame = cap.read()
              cv2.imwrite('frame0.png', frame)"
       2. Open frame0.png in any image editor; note the pixel rectangle around the kill feed.
-      3. Scale those coordinates to 1920×1080:
-             x_norm = int(x_raw * 1920 / frame_width)
-             y_norm = int(y_raw * 1080 / frame_height)
-      4. Update kill_feed.games.<game>.roi in config.yaml.
+      3. Convert to pct coordinates (0.0-1.0):
+             x_pct = x_raw / frame_width
+             y_pct = y_raw / frame_height
+      4. Update rois.kill_feed in assets/games/<slug>/hud.yaml.
 
 Template assets:
     Place kill/headshot icon PNG files in:
@@ -72,6 +64,7 @@ from collections import deque
 from pathlib import Path
 from typing import NamedTuple
 
+from pipeline import game_pack
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -165,10 +158,10 @@ def run_kill_feed_parser(clip_path: Path, game: str, config: dict) -> dict:
         result = _disabled_result(f"clip not found: {clip_path}")
         return result
 
-    game_cfg = kf_cfg.get("games", {}).get(game)
+    game_cfg = _legacy_game_cfg(game)
     if not game_cfg:
-        logger.debug(f"[kill_feed] No config for game '{game}' — skipping.")
-        result = _disabled_result(f"no kill_feed config for game '{game}'")
+        logger.debug(f"[kill_feed] No kill_feed ROI in game pack for '{game}' — skipping.")
+        result = _disabled_result(f"no kill_feed roi in game pack '{game}'")
         _write_kf_meta(meta_path, result)
         return result
 
@@ -555,4 +548,28 @@ def _disabled_result(reason: str) -> dict:
         "headshot_timestamps": [],
         "reason": reason,
         "method": "disabled",
+    }
+
+
+def _legacy_game_cfg(game: str) -> dict | None:
+    """Return a dict shaped like the old config.yaml kill_feed.games.<slug> block.
+
+    Synthesised from the game pack so the rest of this module can keep reading
+    `game_cfg["roi"]`, `game_cfg["kill_colors"]`, etc. without change.
+    """
+    try:
+        pack = game_pack.load(game)
+    except (FileNotFoundError, game_pack.GamePackError) as exc:
+        logger.warning(f"[kill_feed] Could not load game pack '{game}': {exc}")
+        return None
+
+    roi = pack.hud.get("kill_feed")
+    if roi is None:
+        return None
+
+    return {
+        "roi": roi,
+        "kill_colors": pack.hud.colors("kill_feed", "kill"),
+        "headshot_colors": pack.hud.colors("kill_feed", "headshot"),
+        "pixel_spike_threshold": pack.hud.pixel_spike_threshold("kill_feed") or 50,
     }

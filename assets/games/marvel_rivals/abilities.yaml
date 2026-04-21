@@ -1,0 +1,94 @@
+abilities:
+  # Ultimates (high worthiness boost — team-fight swingers)
+  - id: hela_ult
+    character_id: hela
+    display_name: "Goddess of Death"
+    class: ultimate
+    aliases: ["goddess of death", "hela ult"]
+    worthiness_boost: 0.25
+
+  - id: scarlet_witch_ult
+    character_id: scarlet_witch
+    display_name: "Reality Erasure"
+    class: ultimate
+    aliases: ["reality erasure", "scarlet witch ult"]
+    worthiness_boost: 0.25
+
+  - id: iron_man_ult
+    character_id: iron_man
+    display_name: "Gamma Overdrive"
+    class: ultimate
+    aliases: ["gamma overdrive", "iron man ult"]
+    worthiness_boost: 0.20
+
+  - id: storm_ult
+    character_id: storm
+    display_name: "Omega Hurricane"
+    class: ultimate
+    aliases: ["omega hurricane", "storm ult"]
+    worthiness_boost: 0.22
+
+  - id: punisher_ult
+    character_id: the_punisher
+    display_name: "Final Judgment"
+    class: ultimate
+    aliases: ["final judgment", "punisher ult"]
+    worthiness_boost: 0.20
+
+  - id: moon_knight_ult
+    character_id: moon_knight
+    display_name: "Hand of Khonshu"
+    class: ultimate
+    aliases: ["hand of khonshu", "moon knight ult"]
+    worthiness_boost: 0.20
+
+  - id: luna_snow_ult
+    character_id: luna_snow
+    display_name: "Fate of Both Worlds"
+    class: ultimate
+    aliases: ["fate of both worlds", "luna snow ult"]
+    worthiness_boost: 0.18
+
+  - id: mantis_ult
+    character_id: mantis
+    display_name: "Soul Resurgence"
+    class: ultimate
+    aliases: ["soul resurgence", "mantis ult"]
+    worthiness_boost: 0.15
+
+  - id: doctor_strange_ult
+    character_id: doctor_strange
+    display_name: "Eye of Agamotto"
+    class: ultimate
+    aliases: ["eye of agamotto", "strange ult"]
+    worthiness_boost: 0.22
+
+  # Signature (mid-boost — character-defining high-impact abilities)
+  - id: spider_man_uppercut
+    character_id: spider_man
+    display_name: "Amazing Combo"
+    class: signature
+    aliases: ["amazing combo"]
+    worthiness_boost: 0.12
+
+  - id: magik_teleport_kill
+    character_id: magik
+    display_name: "Stepping Discs"
+    class: signature
+    aliases: ["stepping discs"]
+    worthiness_boost: 0.10
+
+  # Utility (low boost — team enablers, situational plays)
+  - id: rocket_rez
+    character_id: rocket_raccoon
+    display_name: "C.Y.A."
+    class: utility
+    aliases: ["c.y.a.", "rocket rez"]
+    worthiness_boost: 0.08
+
+  - id: invisible_woman_shield
+    character_id: invisible_woman
+    display_name: "Force Physics"
+    class: utility
+    aliases: ["force physics"]
+    worthiness_boost: 0.05

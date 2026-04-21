@@ -1,0 +1,15 @@
+game_id: marvel_rivals
+display_name: "Marvel Rivals"
+genre: "hero_shooter"
+camera_mode: "third_person"
+ui_version: "2024.12"
+
+detectors:
+  kill_feed: true
+  weapon_detector: true
+  audio_detector: true
+
+resolution_profiles:
+  - "1920x1080"
+  - "2560x1440"
+  - "3840x2160"

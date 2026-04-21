@@ -25,8 +25,12 @@ Usage:
 
 After running:
     1. Check assets/weapon_icons/{game}/{weapon_id}.png looks correct.
-    2. Add the mapping to config.yaml → weapon_detector.games.{game}.weapons:
-           sniper_rifle: "Sniper Rifle"
+    2. Add the entity to assets/games/{game}/entities.yaml:
+           - id: sniper_rifle
+             kind: weapon
+             display_name: "Sniper Rifle"
+             role: "sniper"
+             aliases: ["sniper"]
     3. Set weapon_detector.enabled: true and title_engine.enabled: true in config.yaml.
     4. Run the pipeline — the title engine will now inject the detected weapon name.
 """
@@ -41,6 +45,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+from pipeline import game_pack  # noqa: E402
 
 TARGET_WIDTH = 1920
 TARGET_HEIGHT = 1080
@@ -81,16 +87,20 @@ def main() -> None:
         config = yaml.safe_load(f)
 
     wd_cfg = config.get("weapon_detector", {})
-    game_cfg = wd_cfg.get("games", {}).get(args.game)
-    if not game_cfg:
-        print(f"ERROR: No weapon_detector config for game '{args.game}' in config.yaml", file=sys.stderr)
+    try:
+        pack = game_pack.load(args.game)
+    except (FileNotFoundError, game_pack.GamePackError) as exc:
+        print(f"ERROR: could not load game pack '{args.game}': {exc}", file=sys.stderr)
         sys.exit(1)
 
-    roi = game_cfg.get("roi", {})
-    rx = roi.get("x", 0)
-    ry = roi.get("y", 0)
-    rw = roi.get("w", 150)
-    rh = roi.get("h", 80)
+    roi = pack.hud.get("weapon_detector")
+    if roi is None:
+        print(
+            f"ERROR: No 'weapon_detector' roi in assets/games/{args.game}/hud.yaml",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    rx, ry, rw, rh = roi["x"], roi["y"], roi["w"], roi["h"]
 
     clip_path = Path(args.clip)
     if not clip_path.exists():
@@ -146,9 +156,13 @@ def main() -> None:
 
         display_name = args.display_name or args.weapon_id.replace("_", " ").title()
         print()
-        print("Next step — add to config.yaml under weapon_detector.games.{}:".format(args.game))
-        print(f"  weapons:")
-        print(f"    {args.weapon_id}: \"{display_name}\"")
+        print(f"Next step — add to assets/games/{args.game}/entities.yaml:")
+        print("  entities:")
+        print(f"    - id: {args.weapon_id}")
+        print("      kind: weapon")
+        print(f"      display_name: \"{display_name}\"")
+        print("      role: \"unknown\"   # TODO: replace with a real role")
+        print("      aliases: []")
         print()
         print("Then enable detection:")
         print("  weapon_detector:")
