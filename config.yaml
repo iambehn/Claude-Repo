@@ -306,6 +306,39 @@ weapon_detector:
   #   assets/games/<slug>/entities.yaml  (entities with kind: hero|weapon)
 
 # ---------------------------------------------------------------------------
+# ROI Matcher — template-matching pipeline stage (OpenCV matchTemplate)
+# ---------------------------------------------------------------------------
+# Matches saved PNG reference images against named ROI regions in each clip.
+# Templates are registered in assets/games/<slug>/hud.yaml under `templates:`
+# and can be added via the CLI tool or the Flask Quarantine → Snip ROI UI.
+#
+# Step-by-step setup:
+#   1. Extract a template from a quarantined clip:
+#          python tools/snip_roi.py \
+#              --clip quarantine/{game}/{reason}/clip.mp4 \
+#              --game {game} \
+#              --template-id headshot_medal \
+#              --roi-name kill_feed \
+#              --time 8.0 \
+#              --crop "x,y,w,h"
+#      Or use the Quarantine browser in the review UI → Snip ROI.
+#
+#   2. Set enabled: true and run:
+#          python run.py --game {game}
+#
+#   3. Re-evaluate quarantined clips after adding templates:
+#          python run.py --enrich-quarantine {game}
+#
+# frame_sample options:
+#   "middle"           — analyse the middle frame only (fast, default)
+#   "kill_timestamps"  — analyse frames at kill events (most accurate)
+#   "all"              — sample every 2 seconds (slowest)
+roi_matcher:
+  enabled: false
+  frame_sample: "middle"    # "middle" | "kill_timestamps" | "all"
+  match_mode: "color"       # "color" | "grayscale"
+
+# ---------------------------------------------------------------------------
 # Title Engine — context-aware upload title generation
 # ---------------------------------------------------------------------------
 # Selects a title template from assets/titles.yaml based on kill-feed and

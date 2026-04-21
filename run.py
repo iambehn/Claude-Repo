@@ -41,8 +41,9 @@ from utils.metadata_injector import inject_metadata
 from pipeline import game_pack
 from pipeline.ingestion import run_ingestion
 from pipeline.audio_detector import run_audio_detector
-from pipeline.clip_judge import run_clip_judge
+from pipeline.clip_judge import run_clip_judge, evaluate
 from pipeline.kill_feed import run_kill_feed_parser
+from pipeline.roi_matcher import run_roi_matcher
 from pipeline.weapon_detector import run_weapon_detector
 from pipeline.title_engine import generate_title
 from pipeline.transcription import run_transcription
@@ -112,6 +113,11 @@ def run_pipeline_for_game(game: str, config: dict) -> None:
                 from utils.file_utils import move_to_quarantine
                 move_to_quarantine(Path(clip_path), game, config, reason="missing_context")
                 continue
+
+        # ROI Matcher: template-match HUD elements against saved reference PNGs.
+        # Runs after weapon_detector so kill_timestamps are available in meta.json.
+        if config.get("roi_matcher", {}).get("enabled", False):
+            run_roi_matcher(Path(clip_path), game, config)
 
         transcript = run_transcription(clip_path, config)
         if transcript is None:
@@ -241,6 +247,101 @@ def _find_meta_for_clip(clip_file: Path, inbox_game_dir: Path) -> Path | None:
     return None
 
 
+def run_enrich_quarantine(game_arg: str, config: dict) -> None:
+    """Re-evaluate quarantined clips after new ROI templates have been added.
+
+    Clears worthiness + roi_matches, re-runs roi_matcher and clip_judge, then
+    promotes clips whose decision flips to "accept" back to inbox/{game}/.
+    """
+    import shutil
+
+    quarantine_root = Path("quarantine")
+    inbox_root = Path(config["paths"]["inbox"])
+
+    games = list(config["games"].keys()) if game_arg == "all" else [game_arg]
+
+    for game in games:
+        if game not in config["games"]:
+            logger.warning(f"[enrich] Unknown game '{game}' — skipping.")
+            continue
+
+        try:
+            pack = game_pack.load(game)
+        except (FileNotFoundError, game_pack.GamePackError) as exc:
+            logger.error(f"[enrich] Could not load game pack for '{game}': {exc}")
+            continue
+
+        game_quarantine = quarantine_root / game
+        if not game_quarantine.exists():
+            logger.info(f"[enrich] {game}: no quarantine directory — nothing to enrich.")
+            continue
+
+        evaluated = promoted = bucket_changed = 0
+
+        for reason_dir in sorted(game_quarantine.iterdir()):
+            if not reason_dir.is_dir():
+                continue
+            for clip_file in sorted(reason_dir.glob("*.mp4")):
+                meta_path = clip_file.with_suffix(".meta.json")
+                if not meta_path.exists():
+                    continue
+
+                evaluated += 1
+                try:
+                    meta = json.loads(meta_path.read_text())
+                except (json.JSONDecodeError, OSError) as exc:
+                    logger.warning(f"[enrich] Could not read meta for {clip_file.name}: {exc}")
+                    continue
+
+                old_reason = meta.get("worthiness", {}).get("quarantine_reason")
+
+                # Clear so stages re-run from scratch
+                meta.pop("worthiness", None)
+                meta.pop("roi_matches", None)
+                try:
+                    meta_path.write_text(json.dumps(meta, indent=2))
+                except OSError as exc:
+                    logger.warning(f"[enrich] Could not clear meta for {clip_file.name}: {exc}")
+                    continue
+
+                if config.get("roi_matcher", {}).get("enabled", False):
+                    run_roi_matcher(clip_file, game, config)
+
+                try:
+                    worthiness = evaluate(meta_path, pack, config)
+                except Exception as exc:
+                    logger.warning(f"[enrich] evaluate() failed for {clip_file.name}: {exc}")
+                    continue
+
+                decision = worthiness.get("decision")
+                new_reason = worthiness.get("quarantine_reason")
+
+                if decision == "accept":
+                    inbox_game = inbox_root / game
+                    inbox_game.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(clip_file), str(inbox_game / clip_file.name))
+                    if meta_path.exists():
+                        shutil.move(str(meta_path), str(inbox_game / meta_path.name))
+                    promoted += 1
+                    logger.info(f"[enrich] Promoted to inbox: {clip_file.name}")
+                elif new_reason and new_reason != old_reason:
+                    new_dir = game_quarantine / new_reason
+                    new_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(clip_file), str(new_dir / clip_file.name))
+                    if meta_path.exists():
+                        shutil.move(str(meta_path), str(new_dir / meta_path.name))
+                    bucket_changed += 1
+                    logger.debug(
+                        f"[enrich] {clip_file.name}: bucket {old_reason!r} → {new_reason!r}"
+                    )
+
+        logger.info(
+            f"[enrich] {game}: {evaluated} evaluated, {promoted} promoted to inbox, "
+            f"{bucket_changed} changed bucket, "
+            f"{evaluated - promoted - bucket_changed} unchanged."
+        )
+
+
 def main() -> None:
     load_dotenv()
 
@@ -289,6 +390,12 @@ def main() -> None:
         dest="init_game",
         help="Scaffold a new assets/games/SLUG/ directory with placeholder YAML.",
     )
+    group.add_argument(
+        "--enrich-quarantine",
+        metavar="GAME",
+        dest="enrich_quarantine",
+        help="Re-evaluate quarantined clips for GAME (or 'all') after adding new ROI templates.",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -327,6 +434,10 @@ def main() -> None:
         logger.info(
             f"Scaffolded assets/games/{slug}/. Next: calibrate HUD ROIs and fill entities.yaml."
         )
+        sys.exit(0)
+
+    if args.enrich_quarantine:
+        run_enrich_quarantine(args.enrich_quarantine, config)
         sys.exit(0)
 
     # --- Pipeline-running commands: validate every game pack first ---

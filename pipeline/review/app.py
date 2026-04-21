@@ -30,6 +30,7 @@ from flask import (
     Flask,
     Response,
     abort,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -272,8 +273,256 @@ def serve_thumb(game: str, stem: str):
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Quarantine browser + ROI editor
 # ---------------------------------------------------------------------------
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
+def _get_quarantine_clips() -> dict:
+    """Scan quarantine/{game}/{reason}/ for clips; return nested dict."""
+    quarantine_root = (PROJECT_ROOT / "quarantine").resolve()
+    result: dict[str, dict[str, list[dict]]] = {}
+    if not quarantine_root.exists():
+        return result
+    for game_dir in sorted(quarantine_root.iterdir()):
+        if not game_dir.is_dir():
+            continue
+        game = game_dir.name
+        for reason_dir in sorted(game_dir.iterdir()):
+            if not reason_dir.is_dir():
+                continue
+            reason = reason_dir.name
+            for clip_file in sorted(reason_dir.glob("*.mp4")):
+                meta_path = clip_file.with_suffix(".meta.json")
+                meta: dict = {}
+                if meta_path.exists():
+                    try:
+                        meta = json.loads(meta_path.read_text())
+                    except (json.JSONDecodeError, OSError):
+                        pass
+                worthiness = meta.get("worthiness") or {}
+                result.setdefault(game, {}).setdefault(reason, []).append({
+                    "stem": clip_file.stem,
+                    "filename": clip_file.name,
+                    "duration": round(meta.get("duration_seconds", 0), 1),
+                    "final_score": worthiness.get("final_score"),
+                    "decision": worthiness.get("decision"),
+                    "quarantine_reason": worthiness.get("quarantine_reason"),
+                })
+    return result
+
+
+@app.route("/quarantine")
+def quarantine_browser():
+    clips_by_game = _get_quarantine_clips()
+    return render_template("quarantine.html", clips_by_game=clips_by_game)
+
+
+@app.route("/quarantine/<game>/<reason>/<stem>")
+def roi_editor(game: str, reason: str, stem: str):
+    quarantine_root = (PROJECT_ROOT / "quarantine").resolve()
+    clip_path = quarantine_root / game / reason / f"{stem}.mp4"
+    if not clip_path.exists():
+        abort(404)
+    meta_path = clip_path.with_suffix(".meta.json")
+    meta: dict = {}
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    from pipeline import game_pack as gp
+    try:
+        pack = gp.load(game)
+        roi_names = list(pack.hud.rois.keys())
+        existing_templates = list(pack.hud.templates)
+    except Exception:
+        roi_names = []
+        existing_templates = []
+
+    duration = round(meta.get("duration_seconds", 0), 1)
+    return render_template(
+        "roi_editor.html",
+        game=game,
+        reason=reason,
+        stem=stem,
+        meta=meta,
+        roi_names=roi_names,
+        existing_templates=existing_templates,
+        duration=duration,
+        clip_rel=f"{game}/{reason}/{stem}.mp4",
+    )
+
+
+@app.route("/api/frame/<game>/<path:clip_rel>")
+def api_frame(game: str, clip_rel: str):
+    """Return a JPEG frame at ?t=<seconds> from a quarantine or inbox clip."""
+    t_str = request.args.get("t", "0")
+    try:
+        t = float(t_str)
+    except ValueError:
+        abort(400)
+
+    quarantine_root = (PROJECT_ROOT / "quarantine").resolve()
+    inbox_root = (PROJECT_ROOT / CONFIG.get("paths", {}).get("inbox", "inbox")).resolve()
+
+    # Resolve and validate path stays within allowed roots
+    candidate_q = (quarantine_root / game / clip_rel).resolve()
+    candidate_i = (inbox_root / game / clip_rel.split("/", 1)[-1]).resolve()
+
+    clip_path: Path | None = None
+    try:
+        candidate_q.relative_to(quarantine_root)
+        if candidate_q.exists():
+            clip_path = candidate_q
+    except ValueError:
+        pass
+
+    if clip_path is None:
+        try:
+            candidate_i.relative_to(inbox_root)
+            if candidate_i.exists():
+                clip_path = candidate_i
+        except ValueError:
+            pass
+
+    if clip_path is None:
+        abort(404)
+
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg", "-y",
+                "-ss", str(t),
+                "-i", str(clip_path),
+                "-frames:v", "1",
+                "-vf", "scale=1920:1080",
+                "-f", "image2pipe",
+                "-vcodec", "mjpeg",
+                "pipe:1",
+            ],
+            capture_output=True,
+            timeout=20,
+        )
+        if result.returncode != 0 or not result.stdout:
+            abort(500)
+        return Response(result.stdout, mimetype="image/jpeg")
+    except Exception:
+        abort(500)
+
+
+@app.route("/api/save_roi_template", methods=["POST"])
+def api_save_roi_template():
+    """Crop frame, save PNG template + provenance, update hud.yaml."""
+    data = request.get_json(force=True)
+    if not data:
+        return jsonify({"ok": False, "error": "no JSON body"}), 400
+
+    required = ("game", "clip_rel", "frame_time", "crop", "template_id", "roi_name")
+    missing = [k for k in required if k not in data]
+    if missing:
+        return jsonify({"ok": False, "error": f"missing fields: {missing}"}), 400
+
+    game: str = data["game"]
+    clip_rel: str = data["clip_rel"]
+    frame_time: float = float(data["frame_time"])
+    crop: dict = data["crop"]
+    template_id: str = data["template_id"]
+    roi_name: str = data["roi_name"]
+    match_threshold: float = float(data.get("match_threshold", 0.84))
+
+    quarantine_root = (PROJECT_ROOT / "quarantine").resolve()
+    inbox_root = (PROJECT_ROOT / CONFIG.get("paths", {}).get("inbox", "inbox")).resolve()
+
+    clip_path: Path | None = None
+    for base in (quarantine_root, inbox_root):
+        candidate = (base / clip_rel).resolve()
+        try:
+            candidate.relative_to(base)
+            if candidate.exists():
+                clip_path = candidate
+                break
+        except ValueError:
+            continue
+
+    if clip_path is None:
+        return jsonify({"ok": False, "error": "clip not found or outside allowed paths"}), 404
+
+    try:
+        from utils.roi_utils import save_template
+        out_path = save_template(
+            game=game,
+            clip_path=clip_path,
+            frame_time=frame_time,
+            crop=crop,
+            template_id=template_id,
+            roi_name=roi_name,
+            match_threshold=match_threshold,
+            config=CONFIG,
+        )
+        return jsonify({"ok": True, "path": str(out_path.relative_to(PROJECT_ROOT))})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/api/enrich_clip/<game>/<reason>/<stem>", methods=["POST"])
+def api_enrich_clip(game: str, reason: str, stem: str):
+    """Clear worthiness+roi_matches, re-run roi_matcher+clip_judge for one quarantined clip."""
+    import sys
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+    quarantine_root = (PROJECT_ROOT / "quarantine").resolve()
+    clip_path = quarantine_root / game / reason / f"{stem}.mp4"
+    if not clip_path.exists():
+        return jsonify({"ok": False, "error": "clip not found"}), 404
+
+    meta_path = clip_path.with_suffix(".meta.json")
+    if not meta_path.exists():
+        return jsonify({"ok": False, "error": "meta.json not found"}), 404
+
+    try:
+        meta = json.loads(meta_path.read_text())
+    except (json.JSONDecodeError, OSError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+    meta.pop("worthiness", None)
+    meta.pop("roi_matches", None)
+    meta_path.write_text(json.dumps(meta, indent=2))
+
+    from pipeline import game_pack as gp
+    from pipeline.roi_matcher import run_roi_matcher
+    from pipeline.clip_judge import evaluate
+
+    if CONFIG.get("roi_matcher", {}).get("enabled", False):
+        run_roi_matcher(clip_path, game, CONFIG)
+
+    try:
+        pack = gp.load(game)
+        worthiness = evaluate(meta_path, pack, CONFIG)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+    decision = worthiness.get("decision")
+    promoted = False
+
+    if decision == "accept":
+        inbox_game = (PROJECT_ROOT / CONFIG.get("paths", {}).get("inbox", "inbox") / game).resolve()
+        inbox_game.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(clip_path), str(inbox_game / clip_path.name))
+        if meta_path.exists():
+            shutil.move(str(meta_path), str(inbox_game / meta_path.name))
+        promoted = True
+
+    return jsonify({
+        "ok": True,
+        "decision": decision,
+        "quarantine_reason": worthiness.get("quarantine_reason"),
+        "final_score": worthiness.get("final_score"),
+        "promoted": promoted,
+    })
+
 
 # ---------------------------------------------------------------------------
 # Scout routes

@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+
+{% block title %}ROI Editor — {{ stem }}{% endblock %}
+
+{% block extra_styles %}
+.editor-page {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+  padding: 20px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Frame viewer */
+.frame-viewer { padding: 12px; }
+.canvas-wrapper {
+  position: relative;
+  display: inline-block;
+  cursor: crosshair;
+  width: 100%;
+}
+#frame-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+  background: #111;
+}
+#crop-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: all;
+}
+
+.time-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.time-controls label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+#time-slider { flex: 1; accent-color: var(--accent); }
+#time-display {
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text);
+  min-width: 50px;
+  text-align: right;
+}
+.btn-load {
+  padding: 5px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.btn-load:hover { border-color: var(--accent); color: var(--accent); }
+
+.crop-coords {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+/* Right panel form */
+.form-body { padding: 16px; }
+.field { margin-bottom: 14px; }
+.field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.field input, .field select {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 13px;
+}
+.field input:focus, .field select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.action-btn {
+  display: block;
+  width: 100%;
+  padding: 9px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.btn-save { background: var(--accent); color: #fff; }
+.btn-save:hover { background: #6b5ce7; }
+.btn-save:disabled { background: #444; color: #888; cursor: not-allowed; }
+.btn-enrich { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+.btn-enrich:hover { border-color: var(--accent); color: var(--accent); }
+.btn-enrich:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.toast {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-top: 10px;
+  display: none;
+}
+.toast-ok  { background: #14532d; color: #4ade80; }
+.toast-err { background: #450a0a; color: #fca5a5; }
+
+/* Existing templates sidebar */
+.tmpl-list { padding: 12px 16px; }
+.tmpl-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.tmpl-item:last-child { border-bottom: none; }
+.tmpl-id { font-family: monospace; color: var(--accent); }
+.tmpl-roi { color: var(--muted); font-size: 11px; }
+{% endblock %}
+
+{% block header_extra %}
+  <span style="margin-left:auto;color:var(--muted);font-size:12px;">
+    <a href="{{ url_for('quarantine_browser') }}" style="color:var(--muted);">← Quarantine</a>
+    &nbsp;/&nbsp; {{ game.replace('_', ' ').title() }} / {{ reason }} / {{ stem }}
+  </span>
+{% endblock %}
+
+{% block content %}
+<div class="editor-page">
+  <!-- Left: frame viewer -->
+  <div>
+    <div class="panel">
+      <div class="panel-header">Frame Viewer</div>
+      <div class="frame-viewer">
+        <div class="canvas-wrapper" id="canvas-wrapper">
+          <img id="frame-img" src="" alt="Select a frame to load">
+          <canvas id="crop-canvas"></canvas>
+        </div>
+        <div class="time-controls">
+          <label>t =</label>
+          <input type="range" id="time-slider"
+                 min="0" max="{{ duration }}" step="0.1" value="{{ duration / 2 }}">
+          <span id="time-display">{{ "%.1f"|format(duration / 2) }}s</span>
+          <button class="btn-load" id="btn-load-frame">Load Frame</button>
+        </div>
+        <div class="crop-coords" id="crop-coords">Drag a rectangle on the frame to crop</div>
+      </div>
+    </div>
+
+    {% if existing_templates %}
+    <div class="panel" style="margin-top:16px;">
+      <div class="panel-header">Existing Templates for {{ game.replace('_', ' ').title() }}</div>
+      <div class="tmpl-list">
+        {% for t in existing_templates %}
+        <div class="tmpl-item">
+          <span class="tmpl-id">{{ t.id }}</span>
+          <span class="tmpl-roi"> → {{ t.roi }}</span>
+          <span class="tmpl-roi"> (threshold: {{ t.match_threshold }})</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right: form -->
+  <div>
+    <div class="panel">
+      <div class="panel-header">Save Template</div>
+      <div class="form-body">
+        <div class="field">
+          <label>Template ID</label>
+          <input type="text" id="template-id" placeholder="e.g. headshot_medal" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>ROI Name</label>
+          <select id="roi-name">
+            {% for r in roi_names %}
+            <option value="{{ r }}">{{ r }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Match Threshold</label>
+          <input type="number" id="match-threshold" value="0.84" min="0.0" max="1.0" step="0.01">
+        </div>
+        <div class="field">
+          <label>Crop Region (at 1920×1080)</label>
+          <input type="text" id="crop-display" placeholder="Draw rectangle on frame" readonly>
+          <input type="hidden" id="crop-x">
+          <input type="hidden" id="crop-y">
+          <input type="hidden" id="crop-w">
+          <input type="hidden" id="crop-h">
+        </div>
+        <div class="field">
+          <label>Frame Time (s)</label>
+          <input type="number" id="frame-time-input" value="{{ "%.1f"|format(duration / 2) }}"
+                 min="0" max="{{ duration }}" step="0.1">
+        </div>
+
+        <button class="action-btn btn-save" id="btn-save" disabled>Save Template</button>
+        <button class="action-btn btn-enrich" id="btn-enrich">Re-evaluate Clip</button>
+
+        <div class="toast" id="toast"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <div class="panel-header">Clip Info</div>
+      <div class="form-body" style="font-size:12px;color:var(--muted);">
+        <div><strong style="color:var(--text);">Game:</strong> {{ game }}</div>
+        <div><strong style="color:var(--text);">Reason:</strong> {{ reason }}</div>
+        <div><strong style="color:var(--text);">Duration:</strong> {{ duration }}s</div>
+        {% set w = meta.get('worthiness', {}) %}
+        {% if w %}
+        <div style="margin-top:8px;">
+          <div><strong style="color:var(--text);">Context:</strong> {{ "%.3f"|format(w.context_confidence or 0) }}</div>
+          <div><strong style="color:var(--text);">Hook:</strong> {{ "%.3f"|format(w.hook_confidence or 0) }}</div>
+          <div><strong style="color:var(--text);">Postability:</strong> {{ "%.3f"|format(w.postability_score or 0) }}</div>
+          <div><strong style="color:var(--text);">Final Score:</strong> {{ "%.3f"|format(w.final_score or 0) }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const GAME       = {{ game|tojson }};
+const REASON     = {{ reason|tojson }};
+const STEM       = {{ stem|tojson }};
+const CLIP_REL   = {{ clip_rel|tojson }};
+const DURATION   = {{ duration }};
+
+const frameImg   = document.getElementById('frame-img');
+const canvas     = document.getElementById('crop-canvas');
+const ctx        = canvas.getContext('2d');
+const wrapper    = document.getElementById('canvas-wrapper');
+const slider     = document.getElementById('time-slider');
+const timeDisp   = document.getElementById('time-display');
+const coordsDisp = document.getElementById('crop-coords');
+const btnLoad    = document.getElementById('btn-load-frame');
+const btnSave    = document.getElementById('btn-save');
+const btnEnrich  = document.getElementById('btn-enrich');
+const toast      = document.getElementById('toast');
+const frameTimeInput = document.getElementById('frame-time-input');
+
+let cropRect = null;   // {x, y, w, h} at 1920×1080
+let drawing  = false;
+let startX   = 0, startY = 0;
+let currentFrameTime = parseFloat(slider.value);
+
+// Sync slider ↔ time display + frame-time input
+slider.addEventListener('input', () => {
+  currentFrameTime = parseFloat(slider.value);
+  timeDisp.textContent = currentFrameTime.toFixed(1) + 's';
+  frameTimeInput.value = currentFrameTime.toFixed(1);
+});
+frameTimeInput.addEventListener('input', () => {
+  let v = parseFloat(frameTimeInput.value);
+  if (!isNaN(v)) {
+    v = Math.max(0, Math.min(DURATION, v));
+    currentFrameTime = v;
+    slider.value = v;
+    timeDisp.textContent = v.toFixed(1) + 's';
+  }
+});
+
+function syncCanvasSize() {
+  canvas.width  = frameImg.naturalWidth  || frameImg.offsetWidth;
+  canvas.height = frameImg.naturalHeight || frameImg.offsetHeight;
+  // CSS forces canvas to fill wrapper
+}
+
+function loadFrame() {
+  const url = `/api/frame/${GAME}/${encodeURIComponent(CLIP_REL)}?t=${currentFrameTime}`;
+  frameImg.src = url;
+  frameImg.onload = () => {
+    syncCanvasSize();
+    redraw();
+  };
+}
+
+// Canvas mouse handlers
+canvas.addEventListener('mousedown', e => {
+  drawing = true;
+  const r = canvas.getBoundingClientRect();
+  startX = (e.clientX - r.left) * (canvas.width  / r.width);
+  startY = (e.clientY - r.top)  * (canvas.height / r.height);
+  cropRect = null;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const r = canvas.getBoundingClientRect();
+  const curX = (e.clientX - r.left) * (canvas.width  / r.width);
+  const curY = (e.clientY - r.top)  * (canvas.height / r.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#7c6bff';
+  ctx.lineWidth   = 2;
+  ctx.strokeRect(startX, startY, curX - startX, curY - startY);
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (!drawing) return;
+  drawing = false;
+  const r   = canvas.getBoundingClientRect();
+  const curX = (e.clientX - r.left) * (canvas.width  / r.width);
+  const curY = (e.clientY - r.top)  * (canvas.height / r.height);
+
+  // Normalize so w/h are positive
+  const x = Math.round(Math.min(startX, curX));
+  const y = Math.round(Math.min(startY, curY));
+  const w = Math.round(Math.abs(curX - startX));
+  const h = Math.round(Math.abs(curY - startY));
+
+  // Canvas coords are at native image resolution (1920×1080 since we requested that from ffmpeg)
+  cropRect = {x, y, w, h};
+
+  document.getElementById('crop-x').value = x;
+  document.getElementById('crop-y').value = y;
+  document.getElementById('crop-w').value = w;
+  document.getElementById('crop-h').value = h;
+  document.getElementById('crop-display').value = `x=${x}, y=${y}, w=${w}, h=${h}`;
+  coordsDisp.textContent = `Crop: x=${x}, y=${y}, w=${w}, h=${h}`;
+
+  btnSave.disabled = (w < 4 || h < 4);
+  redraw();
+});
+
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (cropRect) {
+    ctx.strokeStyle = '#7c6bff';
+    ctx.lineWidth   = 2;
+    ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+  }
+}
+
+btnLoad.addEventListener('click', loadFrame);
+
+// Save template
+btnSave.addEventListener('click', async () => {
+  const templateId = document.getElementById('template-id').value.trim();
+  if (!templateId) { showToast('Template ID is required', false); return; }
+  if (!cropRect || cropRect.w < 4 || cropRect.h < 4) { showToast('Draw a crop region first', false); return; }
+
+  btnSave.disabled = true;
+  const payload = {
+    game: GAME,
+    clip_rel: CLIP_REL,
+    frame_time: currentFrameTime,
+    crop: cropRect,
+    template_id: templateId,
+    roi_name: document.getElementById('roi-name').value,
+    match_threshold: parseFloat(document.getElementById('match-threshold').value),
+  };
+
+  try {
+    const res = await fetch('/api/save_roi_template', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`Saved: ${data.path}`, true);
+    } else {
+      showToast(`Error: ${data.error}`, false);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err}`, false);
+  } finally {
+    btnSave.disabled = false;
+  }
+});
+
+// Re-evaluate clip
+btnEnrich.addEventListener('click', async () => {
+  btnEnrich.disabled = true;
+  try {
+    const res = await fetch(`/api/enrich_clip/${GAME}/${REASON}/${STEM}`, {method: 'POST'});
+    const data = await res.json();
+    if (data.ok) {
+      const score = data.final_score != null ? data.final_score.toFixed(3) : '?';
+      if (data.promoted) {
+        showToast(`Promoted to inbox! decision=accept, score=${score}`, true);
+        setTimeout(() => { window.location.href = '/quarantine'; }, 1500);
+      } else {
+        showToast(`decision=${data.decision} (${data.quarantine_reason || 'none'}), score=${score}`, true);
+      }
+    } else {
+      showToast(`Error: ${data.error}`, false);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err}`, false);
+  } finally {
+    btnEnrich.disabled = false;
+  }
+});
+
+function showToast(msg, ok) {
+  toast.textContent = msg;
+  toast.className = 'toast ' + (ok ? 'toast-ok' : 'toast-err');
+  toast.style.display = 'block';
+}
+
+// Load first frame on page load
+loadFrame();
+</script>
+{% endblock %}

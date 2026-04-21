@@ -56,9 +56,10 @@ BASELINE_WEIGHTS: dict[str, Any] = {
         "hook_window_seconds": 1.5,
     },
     "context_inputs": {
-        "weapon_confidence": 0.40,
-        "kill_detection_saturation": 0.35,
-        "audio_saturation": 0.25,
+        "weapon_confidence": 0.35,
+        "kill_detection_saturation": 0.30,
+        "audio_saturation": 0.20,
+        "roi_match_count": 0.15,
     },
     "postability_inputs": {
         "sweat_score": 0.25,

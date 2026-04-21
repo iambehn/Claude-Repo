@@ -74,6 +74,7 @@ def _context_confidence(meta: dict, pack: game_pack.GamePack, config: dict) -> t
     kf_enabled = bool(config.get("kill_feed", {}).get("enabled"))
     wd_enabled = bool(config.get("weapon_detector", {}).get("enabled"))
     ad_enabled = bool(config.get("audio_detector", {}).get("enabled"))
+    rm_enabled = bool(config.get("roi_matcher", {}).get("enabled"))
 
     active: set[str] = set()
     if wd_enabled:
@@ -82,6 +83,8 @@ def _context_confidence(meta: dict, pack: game_pack.GamePack, config: dict) -> t
         active.add("kill_detection_saturation")
     if ad_enabled:
         active.add("audio_saturation")
+    if rm_enabled:
+        active.add("roi_match_count")
 
     if not active:
         explanation.append("no detectors enabled — context_confidence=0")
@@ -104,6 +107,11 @@ def _context_confidence(meta: dict, pack: game_pack.GamePack, config: dict) -> t
         ad = meta.get("audio_detector", {}) or {}
         spikes = len(ad.get("spike_timestamps") or [])
         components["audio_saturation"] = min(1.0, spikes / 4.0)
+
+    if "roi_match_count" in active:
+        rm = meta.get("roi_matches", {}) or {}
+        matches = rm.get("matches") or []
+        components["roi_match_count"] = min(1.0, len(matches) / 2.0)
 
     score = sum(active_weights[k] * components[k] for k in components)
     for k, v in components.items():

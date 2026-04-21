@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Quarantine{% endblock %}
+
+{% block extra_styles %}
+.q-page { padding: 24px; max-width: 1100px; margin: 0 auto; }
+
+.q-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.q-header h1 { font-size: 20px; font-weight: 700; }
+
+.bucket-section { margin-bottom: 32px; }
+
+.bucket-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.bucket-heading h2 { font-size: 15px; font-weight: 600; }
+.bucket-badge {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+table { width: 100%; border-collapse: collapse; }
+thead tr { border-bottom: 1px solid var(--border); }
+th {
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+tbody tr:hover { background: var(--surface); }
+td { padding: 10px; vertical-align: middle; }
+
+.snip-btn {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.snip-btn:hover { background: #6b5ce7; text-decoration: none; }
+
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--muted);
+}
+.empty-state p { font-size: 15px; margin-top: 8px; }
+{% endblock %}
+
+{% block header_extra %}
+  <span style="margin-left:auto;color:var(--muted);font-size:12px;">
+    Quarantined clips — add ROI templates to promote them
+  </span>
+{% endblock %}
+
+{% block content %}
+<div class="q-page">
+  <div class="q-header">
+    <h1>Quarantine Browser</h1>
+  </div>
+
+  {% if not clips_by_game %}
+  <div class="empty-state">
+    <div style="font-size:40px;">✓</div>
+    <p>No quarantined clips.</p>
+    <p>Clips land here when context signals are too weak for the pipeline to accept them.</p>
+  </div>
+  {% else %}
+    {% for game, reasons in clips_by_game.items() %}
+      {% for reason, clips in reasons.items() %}
+      <div class="bucket-section">
+        <div class="bucket-heading">
+          <h2>{{ game.replace('_', ' ').title() }} — {{ reason.replace('_', ' ') }}</h2>
+          <span class="bucket-badge">{{ clips|length }}</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Clip</th>
+              <th>Duration</th>
+              <th>Final Score</th>
+              <th>Reason</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for clip in clips %}
+            <tr>
+              <td style="font-family:monospace;font-size:12px;">{{ clip.stem }}</td>
+              <td style="color:var(--muted);">{{ clip.duration }}s</td>
+              <td>
+                {% if clip.final_score is not none %}
+                  {% set fs = clip.final_score %}
+                  {% set score_class = 'score-high' if fs >= 0.65 else ('score-medium' if fs >= 0.35 else 'score-low') %}
+                  <div class="score-pill {{ score_class }}" style="width:52px;height:28px;border-radius:4px;font-size:12px;">
+                    {{ "%.2f"|format(fs) }}
+                  </div>
+                {% else %}
+                  <span style="color:var(--muted);">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge badge-other">{{ clip.quarantine_reason or reason }}</span>
+              </td>
+              <td>
+                <a class="snip-btn" href="{{ url_for('roi_editor', game=game, reason=reason, stem=clip.stem) }}">
+                  Snip ROI →
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}
