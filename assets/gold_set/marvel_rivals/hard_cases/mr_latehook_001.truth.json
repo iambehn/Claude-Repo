@@ -1,0 +1,15 @@
+{
+  "clip_id": "mr_latehook_001",
+  "game": "marvel_rivals",
+  "expected_decision": "quarantine",
+  "difficulty": "hard",
+  "labels": ["double_kill", "late_hook", "medium_audio"],
+  "notes": "Good action but first kill at 6.8s — hook gate will fail. Candidate for FFmpeg trim rescue if action_start_seconds is used.",
+  "added_at": "2026-04-25",
+  "signal_truth": {
+    "context_confidence": 0.65,
+    "hook_confidence": 0.00,
+    "postability_score": 0.58,
+    "final_score": 0.45
+  }
+}

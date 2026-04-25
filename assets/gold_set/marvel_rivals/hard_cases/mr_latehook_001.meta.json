@@ -1,0 +1,31 @@
+{
+  "clip_id": "mr_latehook_001",
+  "game": "marvel_rivals",
+  "duration_seconds": 22.0,
+  "audio_energy": "medium",
+  "motion_level": "medium",
+  "keywords": ["nice", "got him"],
+  "kill_feed": {
+    "kill_count": 2,
+    "headshot_count": 0,
+    "sweat_score": 54,
+    "kill_timestamps": [6.8, 9.2],
+    "headshot_timestamps": []
+  },
+  "weapon_detection": {
+    "weapon_id": "iron_man_repulsor",
+    "confidence": 0.74,
+    "frame_time": 2.1
+  },
+  "audio_detector": {
+    "spike_timestamps": [6.7, 9.1],
+    "peak_rms": 0.61
+  },
+  "transcription": {
+    "text": "nice got him double kill",
+    "segments": [
+      {"start": 6.9, "end": 7.5, "text": "nice"},
+      {"start": 9.2, "end": 10.1, "text": "got him double kill"}
+    ]
+  }
+}

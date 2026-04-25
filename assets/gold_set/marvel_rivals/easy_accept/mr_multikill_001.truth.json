@@ -1,0 +1,15 @@
+{
+  "clip_id": "mr_multikill_001",
+  "game": "marvel_rivals",
+  "expected_decision": "accept",
+  "difficulty": "easy",
+  "labels": ["multi_kill", "strong_hook", "high_audio", "speech_reaction"],
+  "notes": "3-kill sequence, first kill at 1.1s, strong audio spikes throughout, clear speech reaction",
+  "added_at": "2026-04-25",
+  "signal_truth": {
+    "context_confidence": 0.82,
+    "hook_confidence": 0.85,
+    "postability_score": 0.78,
+    "final_score": 0.81
+  }
+}

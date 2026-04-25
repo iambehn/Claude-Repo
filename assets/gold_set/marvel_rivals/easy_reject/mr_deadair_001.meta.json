@@ -1,0 +1,28 @@
+{
+  "clip_id": "mr_deadair_001",
+  "game": "marvel_rivals",
+  "duration_seconds": 32.1,
+  "audio_energy": "low",
+  "motion_level": "low",
+  "keywords": [],
+  "kill_feed": {
+    "kill_count": 0,
+    "headshot_count": 0,
+    "sweat_score": 8,
+    "kill_timestamps": [],
+    "headshot_timestamps": []
+  },
+  "weapon_detection": {
+    "weapon_id": null,
+    "confidence": 0.12,
+    "frame_time": null
+  },
+  "audio_detector": {
+    "spike_timestamps": [],
+    "peak_rms": 0.14
+  },
+  "transcription": {
+    "text": "",
+    "segments": []
+  }
+}

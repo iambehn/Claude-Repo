@@ -1,0 +1,15 @@
+{
+  "clip_id": "mr_deadair_001",
+  "game": "marvel_rivals",
+  "expected_decision": "quarantine",
+  "difficulty": "easy",
+  "labels": ["dead_air", "no_kills", "low_audio", "no_hook"],
+  "notes": "Wandering between objectives with no action — dead air for the full duration",
+  "added_at": "2026-04-25",
+  "signal_truth": {
+    "context_confidence": 0.06,
+    "hook_confidence": 0.00,
+    "postability_score": 0.05,
+    "final_score": 0.04
+  }
+}
