@@ -833,6 +833,46 @@ Minimum compose services: `app` (pipeline runner), `redis` (queue broker, when P
 
 ---
 
+## Backlog — Calibration Layer (Weight Optimization)
+
+The pipeline's scoring decisions are driven by weights in `BASELINE_WEIGHTS` (game_pack.py) and per-game `weights.yaml` overrides. Currently these are set manually by operator judgment. The calibration layer is the upgrade path to evidence-based weight tuning.
+
+### Current State
+
+Manual YAML editing. Weights in `pipeline/game_pack.py → BASELINE_WEIGHTS`:
+```python
+"context_inputs": {
+    "weapon_confidence": 0.35,
+    "kill_detection_saturation": 0.30,
+    "audio_saturation": 0.20,
+    "roi_match_count": 0.15,
+}
+```
+Each review decision (`review_status: accepted | rejected`) already written to `meta.json` by the Flask review UI. This is the label source for calibration — it is already being collected.
+
+### Upgrade Path
+
+**Stage 1 — Manual (current):** Adjust weights in YAML based on patterns observed in the review queue. No tooling required. Appropriate until ~50 labeled clips exist.
+
+**Stage 2 — Optuna (at ~50–100 labeled clips):** Define an objective function that re-runs `clip_judge` against the labeled clip set and measures human-agreement rate. Optuna searches the weight space using Bayesian optimization (TPE sampler). Best parameter set replaces the current YAML manually after review. Use MLflow to log each trial so tuning history is preserved.
+
+**Stage 3 — Gradient-boosted model (at ~500+ labeled clips):** Replace the linear weight formula with a trained LightGBM or XGBoost model. The same `meta.json` fields become feature columns; `review_status` becomes the label. The model replaces the weighted sum in `_context_confidence()`. Prediction is still a single float — nothing else in the pipeline changes.
+
+### Implementation Checklist
+
+- [ ] `tools/calibrate_weights.py` — loads all `meta.json` files from `accepted/` + `rejected/`, runs Optuna study, prints best weights and agreement rate
+- [ ] MLflow logging integrated into the calibration script
+- [ ] Threshold for triggering calibration: auto-log labeled clip count in the review UI; surface "N labeled clips — calibration available" in `/stats`
+- [ ] After calibration: update `assets/games/{game}/weights.yaml` with best params; note the run ID in the file as a comment
+
+### Notes
+
+The review UI already does the labeling work — no extra operator steps required. The calibration script is a batch job, not a real-time loop. Run it manually when a new batch of clips has been reviewed, not on every pipeline run.
+
+Prerequisite signal quality: calibration only improves things if the labeled clips are representative of the full input distribution. If all reviewed clips are from one game or one week, the calibrated weights will overfit to that slice.
+
+---
+
 ## Changelog
 
 | Date       | Change |
@@ -856,6 +896,8 @@ Minimum compose services: `app` (pipeline runner), `redis` (queue broker, when P
 | 2026-04-15 | Systems Thinking section added: filters vs. templates as the core design philosophy behind repeatable automated workflows |
 | 2026-04-17 | Maintenance: moved implemented QoL features into their proper stage sections; removed crossed-off items from backlog |
 | 2026-04-18 | New Channel Setup Protocol added; Duelist and Night Zero moved to BRAINSTORMING.md |
+| 2026-04-20 | Phase 2 shipped: ROI snipping CLI (`tools/snip_roi.py`), `pipeline/roi_matcher.py` stage, quarantine browser + ROI canvas editor in Flask UI, `--enrich-quarantine` flag in `run.py`, `roi_match_count` signal added to `clip_judge`, `BASELINE_WEIGHTS` rescaled (kill_detection_saturation 0.30, weapon_confidence 0.35, audio_saturation 0.20, roi_match_count 0.15), `utils/roi_utils.py` shared helper, `assets/roi_library/` directory structure |
+| 2026-04-25 | Scope expansion documented: B2B content services verticals added to BRAINSTORMING.md (podcast clipping, Moment Library, Social Proof Engine, corporate training repurposing); Calibration Layer backlog added; Optuna + MLflow added to TOOLS.md |
 
 ---
 

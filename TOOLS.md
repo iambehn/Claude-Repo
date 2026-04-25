@@ -16,6 +16,10 @@ Every tool relevant to the gaming clip farming bot pipeline — whether in use, 
 - [Review UI](#review-ui)
 - [Distribution](#distribution)
 - [Analytics / Optimize](#analytics--optimize)
+  - [Optuna](#optuna)
+  - [MLflow](#mlflow)
+  - [VidIQ](#vidiq)
+  - [TubeBuddy](#tubebuddy)
 - [Competitive Reference](#competitive-reference)
 
 ---
@@ -351,6 +355,52 @@ Every tool relevant to the gaming clip farming bot pipeline — whether in use, 
 ---
 
 ## Analytics / Optimize
+
+### Optuna
+**Stage:** Optimize (Calibration Layer)
+**Status:** CONSIDERING
+**Cost:** Open Source
+**What it does:** Bayesian hyperparameter optimization framework. Defines an objective function and searches for the parameter combination that maximizes it using efficient sampling strategies (TPE, CMA-ES). Replaces grid search and manual tuning.
+**Pipeline fit:** Once 50–100 clips have been labeled (accepted/rejected) via the review UI, Optuna can search over `BASELINE_WEIGHTS` (`kill_detection_saturation`, `weapon_confidence`, `audio_saturation`, `roi_match_count`) to find the weight combination that best predicts human review decisions. Replaces manual YAML weight editing with evidence-based calibration. Objective function uses the labeled clips in `accepted/` and `rejected/` as ground truth.
+**Notes:** `pip install optuna`. Minimal study pattern:
+```python
+import optuna
+
+def objective(trial):
+    weights = {
+        "kill_detection_saturation": trial.suggest_float("kill_detection_saturation", 0.1, 0.6),
+        "weapon_confidence":         trial.suggest_float("weapon_confidence", 0.1, 0.5),
+        "audio_saturation":          trial.suggest_float("audio_saturation", 0.05, 0.4),
+        "roi_match_count":           trial.suggest_float("roi_match_count", 0.0, 0.3),
+    }
+    return evaluate_accuracy_on_labeled_clips(weights)
+
+study = optuna.create_study(direction="maximize")
+study.optimize(objective, n_trials=100)
+print(study.best_params)
+```
+https://optuna.readthedocs.io — integrates with MLflow via `MLflowCallback`. Prerequisite: ~50 labeled clips from the review UI.
+
+---
+
+### MLflow
+**Stage:** Optimize (Experiment Tracking)
+**Status:** CONSIDERING
+**Cost:** Open Source (self-hosted free)
+**What it does:** Experiment tracking platform — log parameters, metrics, and artifacts per run. Compare runs side-by-side in a web UI. Tracks which weight configuration produced which accuracy result so tuning history is reproducible.
+**Pipeline fit:** Each Optuna optimization run logs: weight combination tried, resulting accuracy on the labeled clip set, number of clips evaluated. The MLflow UI makes it trivial to compare runs, identify which weight combinations produce the best human-agreement rate, and roll back to a previous working config. Also useful for tracking AI scoring prompt iterations — log the prompt version and its impact on clip acceptance rate.
+**Notes:** `pip install mlflow`. Start tracking server: `mlflow ui --port 5001` (defaults to SQLite backend, no cloud required). Log from Python:
+```python
+import mlflow
+
+with mlflow.start_run():
+    mlflow.log_params(weights)
+    mlflow.log_metric("accuracy", accuracy)
+    mlflow.log_artifact("assets/games/marvel_rivals/weights.yaml")
+```
+https://mlflow.org — self-hosted with SQLite backend works fine at this scale. Pair with Optuna's `MLflowCallback` for automatic run logging.
+
+---
 
 ### VidIQ
 **Stage:** Optimize  

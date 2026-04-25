@@ -858,6 +858,102 @@ Runs after ingestion, before kill-feed OpenCV — feeding spike timestamps into 
 
 ---
 
+## Content Services — B2B Expansion
+
+The same pipeline architecture (filters → detection → scoring → review → distribution) that processes gaming clips can be pointed at any long-form content vertical. Each idea below is a productized service the pipeline can power for paying clients — no fundamental redesign required, only new scoring modules and client pack configs.
+
+---
+
+### Idea 1 — Productized Podcast Clipping Service
+
+**Premise:** Done-for-you clipping service for podcasters, interview-based shows, and talk content creators. Ingest the full episode, identify the highest-quotability moments, deliver 5–10 platform-ready shorts per episode.
+
+**Why it maps to this pipeline:**
+
+| Gaming concept | Podcast equivalent |
+|---|---|
+| `sweat_score` | `quotability_score` (Claude CVD scoring) |
+| `kill_timestamps` | `hot_moment_timestamps` (LLM-identified peaks) |
+| `frame_sample: kill_timestamps` | `segment_sample: hot_moments` |
+| Game pack | Client pack (per-client templates + weights) |
+
+**CVD Framework for quotability scoring** — score each segment on three axes:
+- **Contradiction** — challenges a widely-held belief or the interviewer's assumption
+- **Vulnerability** — reveals something personal, embarrassing, or costly
+- **Data** — cites a specific number, finding, or case study
+
+Segments with high CVD scores become clips. The same `clip_judge` architecture applies — LLM-extracted signals replace OpenCV-extracted signals.
+
+**Revenue model:** $500–$1,500/month per podcast client (retainer). 10 clients = $5k–$15k/month with a mostly automated workflow.
+
+**What needs to be built:**
+- `pipeline/podcast_scorer.py` — transcription-first; audio is the primary signal
+- `quotability_score` replacing `sweat_score` in the clip_judge weight schema
+- Client pack format: per-client `moments.yaml` (CVD thresholds, target duration, platform preference)
+- Delivery page: `/client/{id}/clips` route in Flask; approved clips downloadable as ZIP
+
+---
+
+### Idea 2 — The Moment Library (SaaS Back-Catalog Index)
+
+**Premise:** For clients with large back-catalogs (200+ episodes, full VOD archives), build a searchable index of every extracted moment. A $50/mo tool that lets them type "find me every time I talked about pricing" and get timestamped clips.
+
+**Why it's valuable:** Most content libraries are completely unsearchable. Their best content is buried. The Moment Library turns a dead archive into a reactivatable asset.
+
+**Architecture:**
+- Batch ingest all back-catalog content (one-time onboarding job extending `run.py --game all`)
+- Transcribe every episode via Whisper; embed segment transcripts (sentence-transformers or Claude embeddings)
+- Store in a vector database (Chroma, Qdrant, or pgvector on Postgres)
+- Search UI: text query → cosine similarity → ranked clip timestamps → one-click FFmpeg extraction
+
+**Revenue model:** $50–$200/mo per client depending on catalog size. Primary upsell for Idea 1 podcast clients — sell the retainer first, upsell the library index after trust is established.
+
+**What needs to be built:**
+- Batch ingestion job
+- Embedding + vector store (`utils/moment_index.py`)
+- Search UI route in Flask (`/search?q=...`)
+
+---
+
+### Idea 3 — Social Proof Engine for DTC Brands
+
+**Premise:** DTC brands receive video testimonials and UGC clips from customers — typically via email, Instagram mentions, or platforms like Mindspark. These are high-conversion assets that brands rarely post because editing them is manual work. The pipeline edits, captions, reformats, and schedules them automatically.
+
+**Why the UGC opportunity is real:**
+- Authenticity asymmetry: consumer-filmed endorsements outperform studio ads at a fraction of the cost
+- The bottleneck isn't content — it's post-production and distribution
+- Brands currently paying $100–$300 per edited UGC clip are the primary acquisition target
+
+**Pipeline fit:**
+- Ingestion: batch URL list or folder upload (same yt-dlp pattern)
+- Feature extraction: detect speech clarity, speaker visibility, product name mention (Whisper keyword match)
+- Scoring: Claude evaluates persuasion strength (specific benefit named, before/after framing, emotional tone)
+- Processing: vertical reformat, caption burn-in, brand watermark overlay (FFmpeg)
+- Distribution: brand's TikTok/Instagram/YouTube via API or Buffer queue
+
+**Revenue model:** $1,000–$3,000/month per brand (retainer) or $25–$50 per edited clip. Volume pricing as clip counts grow.
+
+---
+
+### Idea 4 — Corporate Training Video Repurposing
+
+**Premise:** Companies record hours of internal training content — onboarding videos, compliance walkthroughs, product tutorials. No one watches them. The pipeline segments each recording into 90-second learning snacks, adds captions, and publishes to an internal LMS or knowledge base.
+
+**Why this is underserved:** Enterprise video archives are massive and completely passive. HR departments know no one watches the 45-minute onboarding video. They lack the production resources to fix it.
+
+**Scoring logic:** Replace `sweat_score` with a `clarity_score`:
+- **Subject matter density:** distinct concepts per minute
+- **Instruction density:** imperative sentences per segment ("always do X", "never do Y", "the key step is...")
+- **Example density:** concrete examples (counts, names, before/after) vs. abstract filler
+
+High-clarity segments become standalone micro-modules.
+
+**Revenue model:** One-time project fee ($5k–$20k to process a back-catalog) + recurring monthly for new content. Sells into HR, L&D, and IT departments. Higher contract values than consumer-facing verticals; longer sales cycles but much higher LTV.
+
+**The pipeline-as-product angle:** Each engagement creates a reusable client pack (scoring weights, segment rules, LMS format config) that makes the next client faster to onboard. The deliverable is not a consulting project — it's a configured instance of the system.
+
+---
+
 ## Audio-First VOD Mining — Industry Pattern
 
 Audio as a primary filter for highlight discovery is a proven production pattern used by high-end clipping platforms (Insights.gg, Tencent Game Video Analyzer) to keep server costs viable at scale.
