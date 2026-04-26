@@ -339,6 +339,34 @@ roi_matcher:
   match_mode: "color"       # "color" | "grayscale"
 
 # ---------------------------------------------------------------------------
+# Proxy Scanner — cheap signal detection for full VOD mining
+# ---------------------------------------------------------------------------
+# Identifies candidate time windows in a full VOD using proxy signals before
+# downloading any video. Each window above min_proxy_score is downloaded as a
+# short MP4 into inbox/{game}/ for normal pipeline processing.
+#
+# Usage:
+#   python run.py --scan-vod https://www.twitch.tv/videos/12345 marvel_rivals
+#
+# Required env vars (Twitch signals only):
+#   TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET
+proxy_scanner:
+  signals:
+    viewer_clips:
+      enabled: true
+      weight: 5.0
+    audio_spikes:
+      enabled: true
+      weight: 2.0
+      z_score_threshold: 3.5
+  candidate_selection:
+    merge_gap_seconds: 30
+    window_pre_seconds: 10
+    window_post_seconds: 20
+    min_proxy_score: 0.30
+    max_windows: 20
+
+# ---------------------------------------------------------------------------
 # Title Engine — context-aware upload title generation
 # ---------------------------------------------------------------------------
 # Selects a title template from assets/titles.yaml based on kill-feed and

@@ -53,6 +53,7 @@ from pipeline.processing import run_processing
 from pipeline.scoring import run_scoring
 from pipeline.distribution import run_distribution, poll_tiktok_pending, list_reddit_flairs
 from pipeline.montage import run_montage
+from pipeline.proxy_scanner import scan_vod, download_candidate_windows, save_scan_report
 
 logger = get_logger(__name__)
 
@@ -342,6 +343,26 @@ def run_enrich_quarantine(game_arg: str, config: dict) -> None:
         )
 
 
+def run_scan_vod(vod_url: str, game: str, config: dict) -> None:
+    """Scan a VOD for candidate clip windows via proxy signals, then download them."""
+    if game not in config["games"]:
+        logger.error(f"Unknown game '{game}'. Valid: {list(config['games'].keys())}")
+        sys.exit(1)
+
+    logger.info(f"[proxy] Scanning {vod_url} for game '{game}'")
+    windows = scan_vod(vod_url, game, config)
+    if not windows:
+        logger.info("[proxy] No candidate windows found. Nothing to download.")
+        return
+
+    save_scan_report(windows, vod_url, game)
+    clips = download_candidate_windows(vod_url, windows, game, config)
+    logger.info(
+        f"[proxy] {len(clips)} clip(s) staged in inbox/{game}/. "
+        f"Run: python run.py --game {game}"
+    )
+
+
 def main() -> None:
     load_dotenv()
 
@@ -396,6 +417,15 @@ def main() -> None:
         dest="enrich_quarantine",
         help="Re-evaluate quarantined clips for GAME (or 'all') after adding new ROI templates.",
     )
+    group.add_argument(
+        "--scan-vod",
+        nargs=2,
+        metavar=("URL", "GAME"),
+        dest="scan_vod",
+        help="Scan a full VOD for candidate clip windows. "
+             "Args: URL GAME (e.g. https://twitch.tv/videos/123 marvel_rivals). "
+             "Downloads candidate windows into inbox/GAME/ for normal pipeline processing.",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -438,6 +468,11 @@ def main() -> None:
 
     if args.enrich_quarantine:
         run_enrich_quarantine(args.enrich_quarantine, config)
+        sys.exit(0)
+
+    if args.scan_vod:
+        vod_url, game = args.scan_vod
+        run_scan_vod(vod_url, game, config)
         sys.exit(0)
 
     # --- Pipeline-running commands: validate every game pack first ---
