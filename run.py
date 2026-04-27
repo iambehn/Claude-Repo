@@ -343,14 +343,19 @@ def run_enrich_quarantine(game_arg: str, config: dict) -> None:
         )
 
 
-def run_scan_vod(vod_url: str, game: str, config: dict) -> None:
+def run_scan_vod(
+    vod_url: str,
+    game: str,
+    config: dict,
+    chat_log: "Optional[Path]" = None,
+) -> None:
     """Scan a VOD for candidate clip windows via proxy signals, then download them."""
     if game not in config["games"]:
         logger.error(f"Unknown game '{game}'. Valid: {list(config['games'].keys())}")
         sys.exit(1)
 
-    logger.info(f"[proxy] Scanning {vod_url} for game '{game}'")
-    windows = scan_vod(vod_url, game, config)
+    logger.info(f"[proxy] Scanning {vod_url} for game '{game}'" + (f" with chat log {chat_log}" if chat_log else ""))
+    windows = scan_vod(vod_url, game, config, chat_log=chat_log)
     if not windows:
         logger.info("[proxy] No candidate windows found. Nothing to download.")
         return
@@ -427,6 +432,12 @@ def main() -> None:
              "Downloads candidate windows into inbox/GAME/ for normal pipeline processing.",
     )
     parser.add_argument(
+        "--chat-log",
+        metavar="PATH",
+        dest="chat_log",
+        help="Path to a Twitch chat log file (.txt/.log) for chat velocity signal with --scan-vod.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="With --distribute: show what would be uploaded without actually posting anything.",
@@ -472,7 +483,8 @@ def main() -> None:
 
     if args.scan_vod:
         vod_url, game = args.scan_vod
-        run_scan_vod(vod_url, game, config)
+        chat_log = Path(args.chat_log) if args.chat_log else None
+        run_scan_vod(vod_url, game, config, chat_log=chat_log)
         sys.exit(0)
 
     # --- Pipeline-running commands: validate every game pack first ---

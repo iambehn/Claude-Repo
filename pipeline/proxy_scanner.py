@@ -6,12 +6,14 @@ uses cheap proxy signals to identify candidate time windows, then downloads
 only those short segments for full pipeline analysis.
 
 Funnel (cheapest to most expensive):
-  1. Twitch viewer clips   → timestamps where viewers already clipped
-  2. Audio spike detection → FFmpeg RMS scan, find loud/active windows
-  3. (future) stream markers, chat velocity, YT comments
+  1. Twitch chat velocity  → normalized spike detection on IRC chat log
+  2. Twitch viewer clips   → timestamps where viewers already clipped
+  3. Audio spike detection → FFmpeg RMS scan, find loud/active windows
+  4. (future) stream markers, YT chapter timestamps
 
 Usage from run.py:
-    python run.py --scan-vod https://www.twitch.tv/videos/12345 --game marvel_rivals
+    python run.py --scan-vod https://www.twitch.tv/videos/12345 marvel_rivals
+    python run.py --scan-vod https://www.twitch.tv/videos/12345 marvel_rivals --chat-log chat.log
 
 Each candidate window that passes the proxy score threshold is downloaded
 as a short MP4 into inbox/{game}/ with a .meta.json sidecar, then the
@@ -20,6 +22,7 @@ normal pipeline processes it.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
@@ -31,6 +34,7 @@ from typing import Optional
 
 import requests
 import yt_dlp
+import yaml
 
 from utils.logger import get_logger
 
@@ -68,6 +72,7 @@ class CandidateWindow:
 # ---------------------------------------------------------------------------
 
 _DEFAULT_WEIGHTS = {
+    "chat_spike":     3.5,
     "viewer_clips":   5.0,
     "audio_spike":    2.0,
     "stream_marker":  5.0,
@@ -77,7 +82,56 @@ _DEFAULT_CONFIDENCES = {
     "viewer_clips":   0.90,
     "audio_spike":    0.60,
     "stream_marker":  0.95,
+    "chat_spike":     0.70,
 }
+
+
+# ---------------------------------------------------------------------------
+# Per-game config loading
+# ---------------------------------------------------------------------------
+
+
+def _deep_merge(base: dict, override: dict) -> None:
+    """Recursively merge override into base in-place (override wins on conflicts)."""
+    for key, val in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(val, dict):
+            _deep_merge(base[key], val)
+        else:
+            base[key] = val
+
+
+def _load_proxy_config(game: str, global_config: dict) -> dict:
+    """Load assets/games/{game}/proxy.yaml and deep-merge over global config defaults."""
+    game_path = Path(f"assets/games/{game}/proxy.yaml")
+    base = copy.deepcopy(global_config.get("proxy_scanner", {}))
+    if game_path.exists():
+        game_data = yaml.safe_load(game_path.read_text(encoding="utf-8")) or {}
+        game_ps = game_data.get("proxy_scanner", {})
+        _deep_merge(base, game_ps)
+    return base
+
+
+# ---------------------------------------------------------------------------
+# Signal deduplication
+# ---------------------------------------------------------------------------
+
+
+def _dedupe_signals(signals: list[ProxySignal], min_gap: float = 3.0) -> list[ProxySignal]:
+    """Drop same-source signals that arrive within min_gap seconds of each other.
+
+    Prevents a burst of identical-source events (e.g., 10 consecutive chat
+    buckets all flagged) from artificially inflating window scores.
+    """
+    signals = sorted(signals, key=lambda s: s.timestamp)
+    deduped: list[ProxySignal] = []
+    last_by_source: dict[str, ProxySignal] = {}
+    for sig in signals:
+        last = last_by_source.get(sig.source)
+        if last and abs(sig.timestamp - last.timestamp) < min_gap:
+            continue
+        deduped.append(sig)
+        last_by_source[sig.source] = sig
+    return deduped
 
 
 # ---------------------------------------------------------------------------
@@ -451,23 +505,52 @@ def _download_window(
 # ---------------------------------------------------------------------------
 
 
-def scan_vod(url: str, game: str, config: dict) -> list[CandidateWindow]:
+def scan_vod(
+    url: str,
+    game: str,
+    config: dict,
+    chat_log: Optional[Path] = None,
+) -> list[CandidateWindow]:
     """Run all enabled proxy signals against a VOD URL and return ranked windows.
 
     This is the cheap analysis pass — no video frames are read.
     Call download_candidate_windows() to fetch the winners.
+
+    Args:
+        url:      VOD URL (Twitch or YouTube).
+        game:     Game key (must match assets/games/{game}/).
+        config:   Global config dict (config.yaml).
+        chat_log: Optional path to a pre-downloaded Twitch chat log.
+                  When provided and chat_velocity.enabled is true in proxy.yaml,
+                  chat velocity signals are included in the scan.
     """
-    ps_cfg = config.get("proxy_scanner", {})
+    ps_cfg = _load_proxy_config(game, config)
     sig_cfg = ps_cfg.get("signals", {})
     cand_cfg = ps_cfg.get("candidate_selection", {})
+    source_weights = ps_cfg.get("weights", {})
 
     weights: dict[str, float] = {}
     all_signals: list[ProxySignal] = []
 
+    # Signal: chat velocity (cheapest — pure text processing)
+    chat_cfg = sig_cfg.get("chat_velocity", {})
+    if chat_cfg.get("enabled", False) and chat_log is not None:
+        from pipeline.chat_scanner import scan_chat_log
+        w = float(source_weights.get("chat_spike", _DEFAULT_WEIGHTS["chat_spike"]))
+        weights["chat_spike"] = w
+        try:
+            chat_signals = scan_chat_log(chat_log, chat_cfg)
+            all_signals.extend(chat_signals)
+            logger.info(f"[proxy] chat_spike: {len(chat_signals)} velocity signal(s) from {chat_log.name}")
+        except Exception as e:
+            logger.warning(f"[proxy] Chat log scan failed: {e}")
+    elif chat_cfg.get("enabled", False) and chat_log is None:
+        logger.debug("[proxy] chat_velocity enabled but no --chat-log provided — skipping")
+
     # Signal: Twitch viewer clips
     vc_cfg = sig_cfg.get("viewer_clips", {})
     if vc_cfg.get("enabled", True):
-        w = float(vc_cfg.get("weight", _DEFAULT_WEIGHTS["viewer_clips"]))
+        w = float(source_weights.get("viewer_clips", _DEFAULT_WEIGHTS["viewer_clips"]))
         weights["viewer_clips"] = w
         video_id = _extract_twitch_video_id(url)
         if video_id:
@@ -478,7 +561,7 @@ def scan_vod(url: str, game: str, config: dict) -> list[CandidateWindow]:
     # Signal: audio spikes
     as_cfg = sig_cfg.get("audio_spikes", {})
     if as_cfg.get("enabled", True):
-        w = float(as_cfg.get("weight", _DEFAULT_WEIGHTS["audio_spike"]))
+        w = float(source_weights.get("audio_spike", _DEFAULT_WEIGHTS["audio_spike"]))
         weights["audio_spike"] = w
         z_thresh = float(as_cfg.get("z_score_threshold", 3.5))
         all_signals.extend(_detect_audio_spikes(url, config, w, z_thresh))
@@ -487,14 +570,16 @@ def scan_vod(url: str, game: str, config: dict) -> list[CandidateWindow]:
         logger.warning("[proxy] No proxy signals found for this VOD")
         return []
 
-    logger.info(f"[proxy] Total signals: {len(all_signals)} from {len(weights)} source(s)")
+    # Deduplicate same-source signals within 3s before merging
+    all_signals = _dedupe_signals(all_signals)
+    logger.info(f"[proxy] Total signals after dedup: {len(all_signals)} from {len(weights)} source(s)")
 
     windows = _merge_signals_into_windows(
         signals=all_signals,
         weights=weights,
         merge_gap=float(cand_cfg.get("merge_gap_seconds", 30)),
         pre_pad=float(cand_cfg.get("window_pre_seconds", 10)),
-        post_pad=float(cand_cfg.get("window_post_seconds", 20)),
+        post_pad=float(cand_cfg.get("window_post_seconds", 25)),
         min_score=float(cand_cfg.get("min_proxy_score", 0.30)),
         max_windows=int(cand_cfg.get("max_windows", 20)),
     )

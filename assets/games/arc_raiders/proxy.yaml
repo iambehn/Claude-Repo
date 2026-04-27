@@ -1,0 +1,33 @@
+# Per-game proxy scanner config for Arc Raiders
+# Overrides global config.yaml proxy_scanner defaults.
+
+proxy_scanner:
+  signals:
+    chat_velocity:
+      enabled: true
+      bucket_seconds: 5
+      rolling_baseline_seconds: 300
+      burst_threshold: 3.0
+      confidence: 0.70
+      baseline_floor: 0.1
+      max_score_velocity: 10.0
+    viewer_clips:
+      enabled: true
+      weight: 5.0
+    audio_spikes:
+      enabled: true
+      weight: 2.0
+      z_score_threshold: 3.5
+
+  weights:
+    chat_spike: 3.5
+    audio_spike: 2.0
+    viewer_clips: 5.0
+    stream_marker: 5.0
+
+  candidate_selection:
+    merge_gap_seconds: 30
+    window_pre_seconds: 10
+    window_post_seconds: 25
+    min_proxy_score: 0.30
+    max_windows: 20
