@@ -122,14 +122,58 @@ def _context_confidence(meta: dict, pack: game_pack.GamePack, config: dict) -> t
 def _hook_confidence(meta: dict, pack: game_pack.GamePack) -> tuple[float, dict[str, Any], list[str]]:
     """Did something interesting happen in the first hook_window_seconds?
 
-    Formula: (0.35 if early_kill) + (0.50 if early_audio_spike) + (0.15 if early_speech)
-    Capped at 1.0.
+    Primary path: use hook_enforcer output when available (richer multi-signal scoring).
+    Fallback: (0.35 if early_kill) + (0.50 if early_audio_spike) + (0.15 if early_speech).
+    Capped at 1.0 in both paths.
     """
     hook_window = float(pack.weights.thresholds.get("hook_window_seconds", 1.5))
     explanation: list[str] = []
 
+    he = meta.get("hook_enforcer") or {}
+    if he.get("status") == "ok":
+        base_score = float(he.get("hook_score", 0.0))
+        early_hook_passed = bool(he.get("early_hook_passed"))
+        anchor = he.get("anchor_moment") or {}
+        action_start = anchor.get("timestamp")
+        explanation.append(
+            f"hook_enforcer: {'passed' if early_hook_passed else 'failed'} "
+            f"(score={base_score:.2f})"
+        )
+        trim_plan = he.get("trim_plan") or {}
+        if trim_plan.get("strategy") == "hard_trim":
+            explanation.append(
+                f"hard_trim proposed at {trim_plan.get('trim_start_seconds')}s"
+            )
+
+        # hook_enforcer doesn't read transcription — add early_speech on top.
+        tr = meta.get("transcription", {}) or {}
+        early_speech = False
+        segments = tr.get("segments") or meta.get("segments") or []
+        if segments:
+            early_speech = any(float(s.get("start", 0.0)) <= hook_window for s in segments)
+        else:
+            text = tr.get("text") or meta.get("transcript", "") or ""
+            early_speech = bool(text.strip())
+
+        score = base_score
+        if early_speech and not early_hook_passed:
+            score = min(1.0, score + 0.15)
+            explanation.append(f"early_speech within {hook_window}s (+0.15)")
+
+        signals = {
+            "early_hook_passed": early_hook_passed,
+            "early_speech": early_speech,
+            "hook_enforcer_score": base_score,
+            "action_start_seconds": round(float(action_start), 3) if action_start is not None else None,
+            "hook_window_seconds": hook_window,
+            "trim_plan": trim_plan or None,
+        }
+        return _clamp(score), signals, explanation
+
+    # Fallback: derive hook score directly from kill_feed + audio events.
+    # audio_detector writes to meta["audio_events"]; check both keys for compat.
     kf = meta.get("kill_feed", {}) or {}
-    ad = meta.get("audio_detector", {}) or {}
+    ad = meta.get("audio_events", {}) or meta.get("audio_detector", {}) or {}
     tr = meta.get("transcription", {}) or {}
 
     kill_ts = kf.get("kill_timestamps") or []
@@ -138,14 +182,11 @@ def _hook_confidence(meta: dict, pack: game_pack.GamePack) -> tuple[float, dict[
     early_kill = any(t <= hook_window for t in kill_ts)
     early_spike = any(t <= hook_window for t in spike_ts)
 
-    # Speech detection: prefer Whisper segments with start<hook_window. Fall
-    # back to "any non-empty transcript" when segments aren't available.
     early_speech = False
     segments = tr.get("segments") or meta.get("segments") or []
     if segments:
         early_speech = any(float(s.get("start", 0.0)) <= hook_window for s in segments)
     else:
-        # Fallback: we don't know when speech starts. Any non-empty text counts.
         text = tr.get("text") or meta.get("transcript", "") or ""
         early_speech = bool(text.strip())
 
@@ -160,7 +201,7 @@ def _hook_confidence(meta: dict, pack: game_pack.GamePack) -> tuple[float, dict[
         score += 0.15
         explanation.append(f"early_speech within {hook_window}s")
 
-    action_start: float | None = None
+    action_start = None
     candidates: list[float] = []
     if early_kill:
         candidates.extend(t for t in kill_ts if t <= hook_window)
