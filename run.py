@@ -343,21 +343,52 @@ def run_enrich_quarantine(game_arg: str, config: dict) -> None:
         )
 
 
+def _fmt_hms(seconds: float) -> str:
+    s = int(seconds)
+    return f"{s // 3600:02d}:{(s % 3600) // 60:02d}:{s % 60:02d}"
+
+
+def _print_scan_preview(windows: list, game: str) -> None:
+    print()
+    print(f"  Proxy scan results — {game}  ({len(windows)} candidate window(s))")
+    print(f"  {'#':<4} {'Score':<7} {'Start':<9} {'End':<9} {'Signals':<36} {'n':>3}")
+    print("  " + "-" * 72)
+    for i, w in enumerate(windows, 1):
+        signals_str = ",".join(w.signals)
+        print(
+            f"  {i:<4} [{w.proxy_score:.2f}]  "
+            f"{_fmt_hms(w.start):<9} {_fmt_hms(w.end):<9} "
+            f"{signals_str:<36} {w.signal_count:>3}"
+        )
+    print()
+    print(f"  Run without --dry-run to download these windows into inbox/{game}/")
+    print()
+
+
 def run_scan_vod(
     vod_url: str,
     game: str,
     config: dict,
     chat_log: "Optional[Path]" = None,
+    dry_run: bool = False,
 ) -> None:
     """Scan a VOD for candidate clip windows via proxy signals, then download them."""
     if game not in config["games"]:
         logger.error(f"Unknown game '{game}'. Valid: {list(config['games'].keys())}")
         sys.exit(1)
 
-    logger.info(f"[proxy] Scanning {vod_url} for game '{game}'" + (f" with chat log {chat_log}" if chat_log else ""))
+    logger.info(
+        f"[proxy] Scanning {vod_url} for game '{game}'"
+        + (f" with chat log {chat_log}" if chat_log else "")
+        + (" [dry-run]" if dry_run else "")
+    )
     windows = scan_vod(vod_url, game, config, chat_log=chat_log)
     if not windows:
-        logger.info("[proxy] No candidate windows found. Nothing to download.")
+        logger.info("[proxy] No candidate windows found.")
+        return
+
+    if dry_run:
+        _print_scan_preview(windows, game)
         return
 
     save_scan_report(windows, vod_url, game)
@@ -484,7 +515,7 @@ def main() -> None:
     if args.scan_vod:
         vod_url, game = args.scan_vod
         chat_log = Path(args.chat_log) if args.chat_log else None
-        run_scan_vod(vod_url, game, config, chat_log=chat_log)
+        run_scan_vod(vod_url, game, config, chat_log=chat_log, dry_run=args.dry_run)
         sys.exit(0)
 
     # --- Pipeline-running commands: validate every game pack first ---
