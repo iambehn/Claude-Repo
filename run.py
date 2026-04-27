@@ -54,6 +54,7 @@ from pipeline.scoring import run_scoring
 from pipeline.distribution import run_distribution, poll_tiktok_pending, list_reddit_flairs
 from pipeline.montage import run_montage
 from pipeline.proxy_scanner import scan_vod, download_candidate_windows, save_scan_report
+from pipeline.hook_enforcer import run_hook_enforcer
 
 logger = get_logger(__name__)
 
@@ -119,6 +120,10 @@ def run_pipeline_for_game(game: str, config: dict) -> None:
         # Runs after weapon_detector so kill_timestamps are available in meta.json.
         if config.get("roi_matcher", {}).get("enabled", False):
             run_roi_matcher(Path(clip_path), game, config)
+
+        # Hook Enforcer: verify first 1.5s has an anchor event; propose hard_trim if not.
+        if config.get("hook_enforcer", {}).get("enabled", False):
+            run_hook_enforcer(Path(clip_path), game, config)
 
         transcript = run_transcription(clip_path, config)
         if transcript is None:
@@ -462,6 +467,20 @@ def main() -> None:
              "Args: URL GAME (e.g. https://twitch.tv/videos/123 marvel_rivals). "
              "Downloads candidate windows into inbox/GAME/ for normal pipeline processing.",
     )
+    group.add_argument(
+        "--wiki-enrich",
+        nargs=2,
+        metavar=("GAME", "URL"),
+        dest="wiki_enrich",
+        help="Fetch a Fandom wiki page and write a draft entities.yaml for GAME. "
+             "Args: GAME URL (e.g. marvel_rivals https://marvelrivals.fandom.com/wiki/Heroes).",
+    )
+    group.add_argument(
+        "--audit-weapon-detector",
+        metavar="GAME",
+        dest="audit_weapon_detector",
+        help="Scan all clip directories for GAME and rank weapons that need better reference icons.",
+    )
     parser.add_argument(
         "--chat-log",
         metavar="PATH",
@@ -516,6 +535,30 @@ def main() -> None:
         vod_url, game = args.scan_vod
         chat_log = Path(args.chat_log) if args.chat_log else None
         run_scan_vod(vod_url, game, config, chat_log=chat_log, dry_run=args.dry_run)
+        sys.exit(0)
+
+    if args.wiki_enrich:
+        game, wiki_url = args.wiki_enrich
+        from pipeline.wiki_enrichment import enrich_game_from_wiki
+        result = enrich_game_from_wiki(game, wiki_url, config)
+        logger.info(
+            f"[wiki_enrich] {game}: {result['status']} — "
+            f"{result['entities_found']} entities, {result['icons_downloaded']} icons "
+            f"→ {result.get('draft_dir') or 'no output'}"
+        )
+        for warning in result.get("warnings") or []:
+            logger.warning(f"[wiki_enrich] {warning}")
+        sys.exit(0 if result["status"] in ("ok", "partial") else 1)
+
+    if args.audit_weapon_detector:
+        from pipeline.weapon_detector_audit import audit_weapon_detector
+        result = audit_weapon_detector(args.audit_weapon_detector, config)
+        logger.info(
+            f"[weapon_audit] {args.audit_weapon_detector}: "
+            f"{result['audited_clips']} clips audited, "
+            f"{len(result['recommended_targets'])} targets recommended "
+            f"→ {result.get('report_path') or 'no report'}"
+        )
         sys.exit(0)
 
     # --- Pipeline-running commands: validate every game pack first ---

@@ -414,6 +414,29 @@ title_engine:
   history_path: "assets/title_history.json"
   history_window: 20
 
+# ---------------------------------------------------------------------------
+# Hook Enforcer — early engagement gate
+# ---------------------------------------------------------------------------
+# Checks whether the first window_seconds of each clip contains an anchorable
+# action moment (kill, niceshot, yolo event, audio spike). When no early hook
+# is found but a late one exists, proposes a hard_trim strategy to re-align
+# the clip so the action lands at the start.
+#
+# Writes meta["hook_enforcer"] with trim_plan and retention_flags.
+# The clip_judge reads hook_enforcer.early_hook_passed for the hook_confidence sub-score.
+hook_enforcer:
+  enabled: false
+  window_seconds: 1.5           # seconds from start that count as "early hook"
+  acceptance_threshold: 0.5     # minimum moment_score for an anchor to be accepted
+  pre_event_padding_seconds: 0.5  # pad before late anchor when trimming
+  minimum_remaining_seconds: 6.0  # reject hard_trim if remaining clip < this
+  dead_air_gap_seconds: 4.0     # flag clips with >4s gap between anchor moments
+  signal_weights:
+    kill_feed: 0.45
+    niceshot: 0.25
+    yolo: 0.20
+    audio: 0.10
+
 pipeline:
   watch_interval_seconds: 30
 

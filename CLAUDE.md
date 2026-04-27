@@ -27,9 +27,9 @@ VOD URL → Proxy Scanner (chat + viewer clips + audio spikes)
 
 **Clip Processing:**
 ```
-Ingestion → Transcription → Feature Extraction → Kill Feed → Weapon Detector
-→ Audio Detector → ROI Matcher → Clip Judge → Processing → AI Scoring
-→ Manual Review → Distribution
+Ingestion → Audio Detector → Kill Feed → Weapon Detector → ROI Matcher
+→ Hook Enforcer → Clip Judge → Transcription → Feature Extraction
+→ Template Selection → Processing → AI Scoring → Manual Review → Distribution
 ```
 
 Each stage writes its output to a `.meta.json` sidecar file next to the clip.
@@ -45,6 +45,10 @@ python run.py --enrich-quarantine marvel_rivals  # re-evaluate quarantined clips
 # VOD mining — finds highlight windows before downloading full video
 python run.py --scan-vod https://twitch.tv/videos/12345 marvel_rivals
 python run.py --scan-vod https://twitch.tv/videos/12345 marvel_rivals --chat-log chat.log
+
+# Game pack utilities
+python run.py --wiki-enrich marvel_rivals https://marvelrivals.fandom.com/wiki/Heroes
+python run.py --audit-weapon-detector marvel_rivals
 ```
 
 ---
@@ -114,6 +118,15 @@ The clip judge decides what those events mean.
 - Proxy scanner for full VOD mining (`pipeline/proxy_scanner.py`, `pipeline/chat_scanner.py`)
   — chat velocity, viewer clip clusters, audio spikes; per-game `proxy.yaml` config
   — `run.py --scan-vod URL GAME [--chat-log FILE]`
+- Hook enforcer (`pipeline/hook_enforcer.py`) — early engagement gate; reads kill_feed,
+  audio_events, niceshot_detection, yolo_detection; proposes hard_trim for late hooks
+  — `config.yaml hook_enforcer.enabled: true` to activate
+- Wiki enrichment (`pipeline/wiki_enrichment.py`) — fetches Fandom wiki pages and writes
+  draft entity YAML with portrait icons to `assets/games/{game}/drafts/wiki/`
+  — `run.py --wiki-enrich GAME URL`
+- Weapon detector audit (`pipeline/weapon_detector_audit.py`) — scans all clip dirs,
+  ranks weapons by detection frequency, exports ROI crops for tuning
+  — `run.py --audit-weapon-detector GAME`
 
 ---
 

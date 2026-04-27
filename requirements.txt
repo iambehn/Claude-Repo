@@ -50,3 +50,6 @@ Pillow>=10.0.0
 
 # Proxy scanner — Twitch chat replay auto-fetch
 chat-downloader>=0.3.0
+
+# Hero/weapon icon bulk cropping (tools/crop_hero_icons.py)
+easyocr>=1.7.0
