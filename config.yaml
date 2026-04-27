@@ -367,12 +367,23 @@ proxy_scanner:
       enabled: true
       weight: 2.0
       z_score_threshold: 3.5
+    youtube:
+      enabled: true
+      chapters:
+        enabled: true
+        confidence: 0.50    # chapters are topic regions, not necessarily highlights
+      comments:
+        enabled: true
+        confidence: 0.65
+        max_comments: 100   # top N comments by relevance (max 100 per API call)
   # Per-source scoring weights (game-level proxy.yaml overrides these)
   weights:
     chat_spike: 3.5
     audio_spike: 2.0
     viewer_clips: 5.0
     stream_marker: 5.0
+    youtube_chapter: 2.0
+    youtube_comment: 3.0
   candidate_selection:
     merge_gap_seconds: 30
     window_pre_seconds: 10

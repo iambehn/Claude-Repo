@@ -72,17 +72,21 @@ class CandidateWindow:
 # ---------------------------------------------------------------------------
 
 _DEFAULT_WEIGHTS = {
-    "chat_spike":     3.5,
-    "viewer_clips":   5.0,
-    "audio_spike":    2.0,
-    "stream_marker":  5.0,
+    "chat_spike":       3.5,
+    "viewer_clips":     5.0,
+    "audio_spike":      2.0,
+    "stream_marker":    5.0,
+    "youtube_chapter":  2.0,
+    "youtube_comment":  3.0,
 }
 
 _DEFAULT_CONFIDENCES = {
-    "viewer_clips":   0.90,
-    "audio_spike":    0.60,
-    "stream_marker":  0.95,
-    "chat_spike":     0.70,
+    "viewer_clips":     0.90,
+    "audio_spike":      0.60,
+    "stream_marker":    0.95,
+    "chat_spike":       0.70,
+    "youtube_chapter":  0.50,
+    "youtube_comment":  0.65,
 }
 
 
@@ -166,6 +170,10 @@ def _extract_twitch_video_id(url: str) -> Optional[str]:
     """Extract numeric video ID from a Twitch VOD URL."""
     m = re.search(r"twitch\.tv/videos/(\d+)", url)
     return m.group(1) if m else None
+
+
+def _is_youtube_url(url: str) -> bool:
+    return "youtube.com" in url or "youtu.be" in url
 
 
 # ---------------------------------------------------------------------------
@@ -597,6 +605,17 @@ def scan_vod(
             all_signals.extend(_fetch_viewer_clips(video_id, config, w))
         else:
             logger.debug("[proxy] URL is not a Twitch VOD — skipping viewer_clips signal")
+
+    # Signal: YouTube chapters + timestamped comments
+    if _is_youtube_url(url):
+        yt_cfg = sig_cfg.get("youtube", {})
+        if yt_cfg.get("enabled", True):
+            from pipeline.youtube_scanner import scan_youtube_vod
+            weights["youtube_chapter"] = float(source_weights.get("youtube_chapter", _DEFAULT_WEIGHTS["youtube_chapter"]))
+            weights["youtube_comment"] = float(source_weights.get("youtube_comment", _DEFAULT_WEIGHTS["youtube_comment"]))
+            yt_signals = scan_youtube_vod(url, yt_cfg, config)
+            all_signals.extend(yt_signals)
+            logger.info(f"[proxy] youtube: {len(yt_signals)} signal(s) (chapters + comments)")
 
     # Signal: audio spikes
     as_cfg = sig_cfg.get("audio_spikes", {})

@@ -24,6 +24,8 @@ proxy_scanner:
     audio_spike: 2.0
     viewer_clips: 5.0
     stream_marker: 5.0
+    youtube_chapter: 2.0
+    youtube_comment: 3.0
 
   candidate_selection:
     merge_gap_seconds: 30
