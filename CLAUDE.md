@@ -19,6 +19,13 @@ Flask (review UI), Claude API (AI scoring), yt-dlp (ingestion)
 
 ## Pipeline Order
 
+**VOD Mining (optional pre-ingestion):**
+```
+VOD URL → Proxy Scanner (chat + viewer clips + audio spikes)
+        → Candidate Windows → yt-dlp segment download → inbox/{game}/
+```
+
+**Clip Processing:**
 ```
 Ingestion → Transcription → Feature Extraction → Kill Feed → Weapon Detector
 → Audio Detector → ROI Matcher → Clip Judge → Processing → AI Scoring
@@ -34,6 +41,10 @@ python run.py --game marvel_rivals   # process one game
 python run.py --game all             # process all games
 python run.py --watch                # continuous loop
 python run.py --enrich-quarantine marvel_rivals  # re-evaluate quarantined clips
+
+# VOD mining — finds highlight windows before downloading full video
+python run.py --scan-vod https://twitch.tv/videos/12345 marvel_rivals
+python run.py --scan-vod https://twitch.tv/videos/12345 marvel_rivals --chat-log chat.log
 ```
 
 ---
@@ -63,6 +74,7 @@ Every game has a directory at `assets/games/{game}/` containing:
 - `entities.yaml` — heroes and weapons
 - `moments.yaml` — named gameplay moments with score multipliers
 - `abilities.yaml` — character abilities with worthiness boosts
+- `proxy.yaml` — proxy scanner signal weights and thresholds (overrides global config.yaml)
 
 Load with: `from pipeline import game_pack; pack = game_pack.load("marvel_rivals")`
 
@@ -99,6 +111,9 @@ The clip judge decides what those events mean.
 - Quarantine enrichment loop (`run.py --enrich-quarantine`)
 - Flask review UI with canvas ROI editor (`pipeline/review/app.py`)
 - Gold set evaluation harness (`pipeline/evaluate.py`)
+- Proxy scanner for full VOD mining (`pipeline/proxy_scanner.py`, `pipeline/chat_scanner.py`)
+  — chat velocity, viewer clip clusters, audio spikes; per-game `proxy.yaml` config
+  — `run.py --scan-vod URL GAME [--chat-log FILE]`
 
 ---
 

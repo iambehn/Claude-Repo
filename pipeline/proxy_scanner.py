@@ -235,6 +235,41 @@ def _fetch_viewer_clips(
 
 
 # ---------------------------------------------------------------------------
+# Signal: chat velocity (auto-fetch via chat-downloader)
+# ---------------------------------------------------------------------------
+
+
+def _fetch_chat_for_vod(url: str, chat_cfg: dict) -> list[ProxySignal]:
+    """Auto-fetch Twitch chat replay via chat-downloader and return velocity signals.
+
+    Requires: pip install chat-downloader
+    Falls back gracefully if the library is missing or the fetch fails.
+    """
+    try:
+        from chat_downloader import ChatDownloader
+        from chat_downloader.errors import ChatDownloaderError
+    except ImportError:
+        logger.warning(
+            "[proxy] chat-downloader not installed — skipping chat auto-fetch. "
+            "Run: pip install chat-downloader"
+        )
+        return []
+
+    from pipeline.chat_scanner import scan_chat_messages
+
+    logger.info(f"[proxy] Auto-fetching Twitch chat replay for {url} ...")
+    try:
+        cd = ChatDownloader()
+        messages = cd.get_chat(url, message_types=["text_message"])
+        signals = scan_chat_messages(messages, chat_cfg)
+        logger.info(f"[proxy] chat auto-fetch: {len(signals)} velocity signal(s)")
+        return signals
+    except Exception as e:
+        logger.warning(f"[proxy] Chat auto-fetch failed: {e}")
+        return []
+
+
+# ---------------------------------------------------------------------------
 # Signal: audio spike detection
 # ---------------------------------------------------------------------------
 
@@ -534,18 +569,23 @@ def scan_vod(
 
     # Signal: chat velocity (cheapest — pure text processing)
     chat_cfg = sig_cfg.get("chat_velocity", {})
-    if chat_cfg.get("enabled", False) and chat_log is not None:
-        from pipeline.chat_scanner import scan_chat_log
+    if chat_cfg.get("enabled", False):
         w = float(source_weights.get("chat_spike", _DEFAULT_WEIGHTS["chat_spike"]))
         weights["chat_spike"] = w
-        try:
-            chat_signals = scan_chat_log(chat_log, chat_cfg)
+        if chat_log is not None:
+            from pipeline.chat_scanner import scan_chat_log
+            try:
+                chat_signals = scan_chat_log(chat_log, chat_cfg)
+                all_signals.extend(chat_signals)
+                logger.info(f"[proxy] chat_spike: {len(chat_signals)} signal(s) from {chat_log.name}")
+            except Exception as e:
+                logger.warning(f"[proxy] Chat log scan failed: {e}")
+        elif _extract_twitch_video_id(url):
+            # No file provided but this is a Twitch VOD — auto-fetch chat replay
+            chat_signals = _fetch_chat_for_vod(url, chat_cfg)
             all_signals.extend(chat_signals)
-            logger.info(f"[proxy] chat_spike: {len(chat_signals)} velocity signal(s) from {chat_log.name}")
-        except Exception as e:
-            logger.warning(f"[proxy] Chat log scan failed: {e}")
-    elif chat_cfg.get("enabled", False) and chat_log is None:
-        logger.debug("[proxy] chat_velocity enabled but no --chat-log provided — skipping")
+        else:
+            logger.debug("[proxy] chat_velocity enabled but no chat log and URL is not Twitch — skipping")
 
     # Signal: Twitch viewer clips
     vc_cfg = sig_cfg.get("viewer_clips", {})

@@ -1,16 +1,21 @@
 """
 pipeline/chat_scanner.py — Twitch chat velocity scanner for proxy signal detection
 
-Parses a Twitch chat log (pre-downloaded file) and returns normalized ProxySignal
-objects representing chat velocity spikes — moments where chat activity surged
-relative to the rolling baseline.
+Parses a Twitch chat log and returns normalized ProxySignal objects representing
+chat velocity spikes — moments where chat activity surged relative to the rolling
+baseline.
 
-Supported log formats:
+Two entry points:
+  scan_chat_log(path, config)       — parse a pre-downloaded log file
+  scan_chat_messages(msgs, config)  — consume an iterable from chat-downloader
+                                      (used by proxy_scanner for auto-fetch)
+
+Supported log file formats:
   [HH:MM:SS] username: message text        <- most common export format
   <seconds_offset> username: message text  <- raw IRC offset format
 
 Usage:
-    from pipeline.chat_scanner import scan_chat_log
+    from pipeline.chat_scanner import scan_chat_log, scan_chat_messages
     signals = scan_chat_log("chat.log", config={"burst_threshold": 3.0})
 """
 
@@ -177,5 +182,33 @@ def scan_chat_log(log_path: str | Path, config: dict[str, Any] | None = None) ->
     signals = _compute_velocity_signals(records, cfg)
     logger.info(
         f"[chat_scanner] {path.name}: parsed_records={len(records)}, emitted_signals={len(signals)}"
+    )
+    return signals
+
+
+def scan_chat_messages(messages: Any, config: dict[str, Any] | None = None) -> list[ProxySignal]:
+    """Process an iterable of chat-downloader message dicts.
+
+    Each message must have at minimum:
+      - 'time_in_seconds': float  — offset from stream start
+      - 'message': str            — raw chat text
+
+    This is the live-fetch path used by proxy_scanner._fetch_chat_for_vod().
+    """
+    cfg = dict(config or {})
+    records: list[dict[str, float]] = []
+    for msg in messages:
+        try:
+            t = float(msg.get("time_in_seconds", 0))
+            text = str(msg.get("message", ""))
+            w = _message_weight(text)
+            if w > 0:
+                records.append({"seconds": t, "weight": w})
+        except (TypeError, ValueError):
+            continue
+
+    signals = _compute_velocity_signals(records, cfg)
+    logger.info(
+        f"[chat_scanner] live_fetch: parsed_records={len(records)}, emitted_signals={len(signals)}"
     )
     return signals
