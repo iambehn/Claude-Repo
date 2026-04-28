@@ -341,12 +341,6 @@ def evaluate(meta_path: Path, pack: game_pack.GamePack, config: dict) -> dict:
     postability, moment_mul, post_expl = _postability_score(meta, pack)
 
     w = pack.weights.composite
-    final = (
-        w["context_weight"] * context
-        + w["hook_weight"] * hook
-        + w["postability_weight"] * postability
-    )
-
     th = pack.weights.thresholds
     accept_th = float(th["accept"])
     reject_th = float(th["reject"])
@@ -354,10 +348,45 @@ def evaluate(meta_path: Path, pack: game_pack.GamePack, config: dict) -> dict:
     hook_gate = float(th["hook_gate"])
     reliable_conf = float(th["reliable_confidence"])
 
+    # Get ML prediction before deciding. Temporarily populate meta["worthiness"]
+    # so _extract_features() can read the computed scores — it reads from that key.
+    meta["worthiness"] = {
+        "context_confidence": round(context, 3),
+        "hook_confidence": round(hook, 3),
+        "postability_score": round(postability, 3),
+        "final_score": round(
+            w["context_weight"] * context
+            + w["hook_weight"] * hook
+            + w["postability_weight"] * postability,
+            3,
+        ),
+    }
+    learned_score = None
+    try:
+        from utils.model_inference import predict_approval
+        learned_score = predict_approval(meta, config)
+    except Exception:
+        pass
+    meta.pop("worthiness")
+
+    # When blend_weight > 0, mix learned prediction into postability before deciding.
+    blend_weight = _clamp(float((config or {}).get("model", {}).get("blend_weight", 0.0)))
+    postability_eff = postability
+    if learned_score is not None and blend_weight > 0.0:
+        postability_eff = _clamp(
+            (1.0 - blend_weight) * postability + blend_weight * learned_score
+        )
+
+    final = (
+        w["context_weight"] * context
+        + w["hook_weight"] * hook
+        + w["postability_weight"] * postability_eff
+    )
+
     decision, reason = _decide(
         context=context,
         hook=hook,
-        postability=postability,
+        postability=postability_eff,
         accept_th=accept_th,
         reject_th=reject_th,
         min_context=min_context,
@@ -375,19 +404,13 @@ def evaluate(meta_path: Path, pack: game_pack.GamePack, config: dict) -> dict:
         "quarantine_reason": reason,
         "hook_satisfied": hook >= hook_gate,
         "action_start_seconds": hook_signals.get("action_start_seconds"),
+        "learned_score": learned_score,
         "explanation": {
             "context": ctx_expl,
             "hook": hook_expl,
             "postability": post_expl,
         },
     }
-
-    # Learned Fusion Model prediction — display-only unless model.blend_weight > 0
-    try:
-        from utils.model_inference import predict_approval
-        worthiness["learned_score"] = predict_approval(meta, config)
-    except Exception:
-        worthiness["learned_score"] = None
 
     meta["worthiness"] = worthiness
     meta_path.write_text(json.dumps(meta, indent=2))

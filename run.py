@@ -498,6 +498,15 @@ def main() -> None:
              "Optional GAME filters to one game (default: all games). "
              "Saves model to data/models/clip_judge/model.pkl.",
     )
+    group.add_argument(
+        "--training-stats",
+        metavar="GAME",
+        nargs="?",
+        const="all",
+        dest="training_stats",
+        help="Print a summary of collected training records in data/training_sets/. "
+             "Optional GAME filters to one game (default: all games).",
+    )
     parser.add_argument(
         "--chat-log",
         metavar="PATH",
@@ -603,6 +612,43 @@ def main() -> None:
             f"[export_training] Exported {exported}/{total} reviewed clips to "
             f"{config.get('training', {}).get('output_dir', 'data/training_sets')}/clip_judge/"
         )
+        sys.exit(0)
+
+    if args.training_stats is not None:
+        from utils.model_trainer import stats as training_stats
+        game_filter = None if args.training_stats == "all" else args.training_stats
+        s = training_stats(game_filter=game_filter, config=config)
+        if s["total"] == 0:
+            print(f"No training records found in {s['data_dir']}")
+            print("Records are written automatically when you approve/reject clips in the review UI.")
+            print("Backfill from already-reviewed clips: python run.py --export-training-data all")
+            sys.exit(0)
+        dr_start, dr_end = s["date_range"]
+        date_str = f"{dr_start} → {dr_end}" if dr_start else "unknown"
+        labeled = s["labeled"]
+        accept_rate = f"{s['approval_rate']:.1%}" if s["approval_rate"] is not None else "n/a"
+        print(f"\nTraining data — {s['data_dir']}")
+        print(f"  {s['total']} records   {s['labeled']} labeled   approval rate {accept_rate}")
+        print(f"  Date range: {date_str}")
+        print(f"\nBy game:")
+        for game, counts in sorted(s["by_game"].items()):
+            game_labeled = counts["accepted"] + counts["rejected"]
+            game_rate = f"{counts['accepted'] / game_labeled:.1%}" if game_labeled else "n/a"
+            print(f"  {game:<20} {counts['total']:>4} total  "
+                  f"{counts['accepted']:>3} accepted  {counts['rejected']:>3} rejected  "
+                  f"({game_rate})")
+        sparse = [(k, v) for k, v in s["null_rates"].items() if v > 0]
+        sparse.sort(key=lambda x: -x[1])
+        if sparse:
+            print(f"\nSparse features (null rate > 0%):")
+            for feat, rate in sparse[:10]:
+                bar = "█" * int(rate * 20)
+                print(f"  {feat:<40} {rate:>5.1%}  {bar}")
+            if len(sparse) > 10:
+                print(f"  ... and {len(sparse) - 10} more")
+        else:
+            print("\nAll features fully populated.")
+        print()
         sys.exit(0)
 
     if args.train_model is not None:

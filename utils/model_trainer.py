@@ -191,6 +191,84 @@ def train(game_filter: str | None = None, config: dict | None = None) -> dict[st
     }
 
 
+def stats(game_filter: str | None = None, config: dict | None = None) -> dict[str, Any]:
+    """Return a summary dict describing the current training dataset.
+
+    Reads all JSONL records (including quarantine — not filtered out here).
+    Useful for checking data quality before running --train-model.
+    """
+    cfg = (config or {}).get("training", {})
+    data_dir = Path(cfg.get("output_dir", "data/training_sets")) / "clip_judge"
+
+    records: list[dict] = []
+    if data_dir.exists():
+        for jsonl_path in sorted(data_dir.glob("*.jsonl")):
+            with jsonl_path.open() as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        records.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+
+    if game_filter and game_filter != "all":
+        records = [r for r in records if r.get("game") == game_filter]
+
+    total = len(records)
+    if total == 0:
+        return {"total": 0, "data_dir": str(data_dir)}
+
+    # Decision breakdown
+    decisions: dict[str, int] = {}
+    for r in records:
+        d = (r.get("label") or {}).get("decision") or "unknown"
+        decisions[d] = decisions.get(d, 0) + 1
+
+    accepted = decisions.get("accepted", 0)
+    rejected = decisions.get("rejected", 0)
+    labeled = accepted + rejected
+    approval_rate = round(accepted / labeled, 3) if labeled > 0 else None
+
+    # Per-game breakdown
+    by_game: dict[str, dict[str, int]] = {}
+    for r in records:
+        game = r.get("game") or "unknown"
+        d = (r.get("label") or {}).get("decision") or "unknown"
+        if game not in by_game:
+            by_game[game] = {"total": 0, "accepted": 0, "rejected": 0}
+        by_game[game]["total"] += 1
+        if d in by_game[game]:
+            by_game[game][d] += 1
+
+    # Date range
+    dates = sorted(r.get("created_at", "")[:10] for r in records if r.get("created_at"))
+    date_range = (dates[0], dates[-1]) if dates else (None, None)
+
+    # Feature null rates — which detector signals are most often missing
+    feature_nonnull: dict[str, int] = {}
+    for r in records:
+        for k, v in (r.get("features") or {}).items():
+            feature_nonnull[k] = feature_nonnull.get(k, 0) + (0 if v is None else 1)
+    null_rates = {
+        k: round(1.0 - feature_nonnull.get(k, 0) / total, 3)
+        for k in ALL_FEATURE_NAMES
+    }
+
+    return {
+        "total": total,
+        "labeled": labeled,
+        "accepted": accepted,
+        "rejected": rejected,
+        "approval_rate": approval_rate,
+        "by_game": by_game,
+        "date_range": date_range,
+        "null_rates": null_rates,
+        "data_dir": str(data_dir),
+    }
+
+
 def _load_records(data_dir: Path, game_filter: str | None) -> list[dict]:
     records: list[dict] = []
     if not data_dir.exists():
