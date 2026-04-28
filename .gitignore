@@ -47,6 +47,9 @@ logs/**
 # Training data — potentially large; exclude from version control
 data/training_sets/
 
+# Trained model artifacts — platform-specific pickle files
+data/models/
+
 # Assets — keep folder structure, ignore actual media files
 assets/music/**
 !assets/music/.gitkeep

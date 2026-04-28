@@ -382,6 +382,13 @@ def evaluate(meta_path: Path, pack: game_pack.GamePack, config: dict) -> dict:
         },
     }
 
+    # Learned Fusion Model prediction — display-only unless model.blend_weight > 0
+    try:
+        from utils.model_inference import predict_approval
+        worthiness["learned_score"] = predict_approval(meta, config)
+    except Exception:
+        worthiness["learned_score"] = None
+
     meta["worthiness"] = worthiness
     meta_path.write_text(json.dumps(meta, indent=2))
     return worthiness

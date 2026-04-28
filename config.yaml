@@ -454,6 +454,23 @@ training:
   enabled: true
   output_dir: "data/training_sets"
 
+# ---------------------------------------------------------------------------
+# Learned Fusion Model — active ML scoring
+# ---------------------------------------------------------------------------
+# After training (python run.py --train-model), clip_judge adds a learned_score
+# field (0.0–1.0) to every clip's worthiness block. The score is shown in the
+# review UI alongside the AI virality score.
+#
+# blend_weight: 0.0  → display only; no effect on routing decisions (default)
+# blend_weight: 0.3  → blend 30% learned + 70% hand-tuned postability score
+#                      Enable this only after accumulating ~200+ labeled examples.
+#
+# Train:   python run.py --train-model [GAME]
+# Retrain: run again any time to incorporate new review decisions.
+model:
+  path: "data/models/clip_judge"
+  blend_weight: 0.0
+
 pipeline:
   watch_interval_seconds: 30
 

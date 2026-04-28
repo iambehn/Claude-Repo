@@ -110,6 +110,7 @@ def _get_pending_clips() -> list[dict]:
                 continue
 
             scoring = meta.get("scoring", {})
+            worthiness = meta.get("worthiness") or {}
             clips.append({
                 "meta": meta,
                 "game": game,
@@ -128,6 +129,7 @@ def _get_pending_clips() -> list[dict]:
                 "audio_energy": meta.get("audio_energy", ""),
                 "keywords": meta.get("keywords", []),
                 "quality_tag": meta.get("quality_tag", ""),
+                "learned_score": worthiness.get("learned_score"),
             })
 
     clips.sort(key=lambda c: c["score"], reverse=True)

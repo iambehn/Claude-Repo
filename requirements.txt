@@ -53,3 +53,7 @@ chat-downloader>=0.3.0
 
 # Hero/weapon icon bulk cropping (tools/crop_hero_icons.py)
 easyocr>=1.7.0
+
+# Learned Fusion Model — training + inference
+scikit-learn>=1.4.0
+joblib>=1.3.0

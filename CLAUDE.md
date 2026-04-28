@@ -49,6 +49,11 @@ python run.py --scan-vod https://twitch.tv/videos/12345 marvel_rivals --chat-log
 # Game pack utilities
 python run.py --wiki-enrich marvel_rivals https://marvelrivals.fandom.com/wiki/Heroes
 python run.py --audit-weapon-detector marvel_rivals
+
+# Training data + ML model
+python run.py --export-training-data all    # backfill JSONL records from already-reviewed clips
+python run.py --train-model                 # train on all games
+python run.py --train-model marvel_rivals   # train on one game only
 ```
 
 ---
@@ -127,6 +132,13 @@ The clip judge decides what those events mean.
 - Weapon detector audit (`pipeline/weapon_detector_audit.py`) — scans all clip dirs,
   ranks weapons by detection frequency, exports ROI crops for tuning
   — `run.py --audit-weapon-detector GAME`
+- Training data export (`utils/training_logger.py`) — every review decision silently
+  appends a JSONL record to `data/training_sets/clip_judge/YYYY-MM-DD.jsonl`
+  — `run.py --export-training-data GAME` backfills from already-reviewed clips
+- Learned Fusion Model (`utils/model_trainer.py`, `utils/model_inference.py`) — trains
+  a logistic regression on 27 detector features; adds `learned_score` to each clip's
+  worthiness block and shows it in the review UI as "ML predict X% approve"
+  — `run.py --train-model [GAME]`; display-only by default (model.blend_weight: 0.0)
 
 ---
 

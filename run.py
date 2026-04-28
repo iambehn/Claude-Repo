@@ -488,6 +488,16 @@ def main() -> None:
         help="Backfill training records for all reviewed clips in GAME (or 'all') from inbox/. "
              "Useful for exporting data from clips reviewed before training logging was added.",
     )
+    group.add_argument(
+        "--train-model",
+        metavar="GAME",
+        nargs="?",
+        const="all",
+        dest="train_model",
+        help="Train the Learned Fusion Model from JSONL records in data/training_sets/. "
+             "Optional GAME filters to one game (default: all games). "
+             "Saves model to data/models/clip_judge/model.pkl.",
+    )
     parser.add_argument(
         "--chat-log",
         metavar="PATH",
@@ -593,6 +603,24 @@ def main() -> None:
             f"[export_training] Exported {exported}/{total} reviewed clips to "
             f"{config.get('training', {}).get('output_dir', 'data/training_sets')}/clip_judge/"
         )
+        sys.exit(0)
+
+    if args.train_model is not None:
+        from utils.model_trainer import train as train_model
+        game_filter = None if args.train_model == "all" else args.train_model
+        result = train_model(game_filter=game_filter, config=config)
+        if result["ok"]:
+            print(
+                f"Model trained on {result['n_samples']} samples "
+                f"(training accuracy={result['accuracy']:.1%}) → {result['model_path']}"
+            )
+            print("Top 5 features by weight:")
+            for name, coef in result.get("top_features", [])[:5]:
+                print(f"  {name:<40} {coef:+.4f}")
+            print("Run the pipeline to score new clips with the learned model.")
+        else:
+            logger.error(f"[train_model] Failed: {result.get('error')}")
+            sys.exit(1)
         sys.exit(0)
 
     # --- Pipeline-running commands: validate every game pack first ---
