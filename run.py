@@ -404,7 +404,7 @@ def run_scan_vod(
     )
 
 
-def _add_to_gold_set(game: str, stem: str, decision: str, config: dict) -> dict:
+def _add_to_gold_set(game: str, stem: str, decision: str, config: dict, notes: str = "") -> dict:
     """Copy a clip's meta.json snapshot into assets/gold_set/ with a truth file.
 
     Searches inbox, accepted, and rejected directories for a meta file whose
@@ -471,7 +471,7 @@ def _add_to_gold_set(game: str, stem: str, decision: str, config: dict) -> dict:
         "expected_decision": decision,
         "difficulty": "easy" if sys_decision == decision else "hard",
         "labels": [],
-        "notes": "",
+        "notes": notes,
         "added_at": date.today().isoformat(),
         "signal_truth": {
             k: worthiness.get(k)
@@ -596,11 +596,27 @@ def main() -> None:
              "DECISION must be accept | quarantine | reject. "
              "Example: --add-to-gold-set marvel_rivals clip_abc123 accept",
     )
+    group.add_argument(
+        "--evaluate",
+        metavar="GAME",
+        nargs="?",
+        const="all",
+        dest="evaluate",
+        help="Run the gold set evaluation scorecard. "
+             "Optional GAME filters to one game slug (default: all games).",
+    )
     parser.add_argument(
         "--chat-log",
         metavar="PATH",
         dest="chat_log",
         help="Path to a Twitch chat log file (.txt/.log) for chat velocity signal with --scan-vod.",
+    )
+    parser.add_argument(
+        "--notes",
+        metavar="TEXT",
+        dest="notes",
+        default="",
+        help="Notes to attach when using --add-to-gold-set (e.g. '3-kill clear hook').",
     )
     parser.add_argument(
         "--dry-run",
@@ -709,7 +725,7 @@ def main() -> None:
         if decision not in ("accept", "quarantine", "reject"):
             logger.error("DECISION must be one of: accept, quarantine, reject")
             sys.exit(1)
-        result = _add_to_gold_set(game, stem, decision, config)
+        result = _add_to_gold_set(game, stem, decision, config, notes=getattr(args, "notes", ""))
         if result["ok"]:
             logger.info(
                 f"[gold_set] Added {stem} → assets/gold_set/{game}/{result['bucket']}/"
@@ -719,6 +735,18 @@ def main() -> None:
             logger.error(f"[gold_set] {result['error']}")
             sys.exit(1)
         sys.exit(0)
+
+    if args.evaluate is not None:
+        from pipeline.evaluate import run_evaluation, print_scorecard, _load_last_run, _persist_run
+        game_filter = None if args.evaluate == "all" else args.evaluate
+        prev = _load_last_run(game_filter)
+        run = run_evaluation(config, game_filter=game_filter)
+        print_scorecard(run, prev)
+        if run.metrics.n_total == 0:
+            print("  Gold set is empty. Add clips with:")
+            print("    python run.py --add-to-gold-set GAME STEM DECISION [--notes TEXT]")
+        _persist_run(run, game_filter)
+        sys.exit(1 if run.regressions else 0)
 
     if args.training_stats is not None:
         from utils.model_trainer import stats as training_stats

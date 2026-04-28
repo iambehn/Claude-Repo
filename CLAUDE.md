@@ -54,6 +54,14 @@ python run.py --audit-weapon-detector marvel_rivals
 python run.py --export-training-data all    # backfill JSONL records from already-reviewed clips
 python run.py --train-model                 # train on all games
 python run.py --train-model marvel_rivals   # train on one game only
+python run.py --training-stats              # dataset summary (counts, approval rate, null rates)
+python run.py --training-stats marvel_rivals
+
+# Gold set evaluation
+python run.py --add-to-gold-set marvel_rivals clip_stem accept   # label a clip for gold set
+python run.py --add-to-gold-set marvel_rivals clip_stem reject --notes "audio false positive"
+python run.py --evaluate                    # score all gold set clips, show regression diff
+python run.py --evaluate marvel_rivals      # evaluate one game only
 ```
 
 ---
@@ -139,6 +147,15 @@ The clip judge decides what those events mean.
   a logistic regression on 27 detector features; adds `learned_score` to each clip's
   worthiness block and shows it in the review UI as "ML predict X% approve"
   — `run.py --train-model [GAME]`; display-only by default (model.blend_weight: 0.0)
+  — `run.py --training-stats [GAME]` shows dataset summary: counts, approval rate, per-game breakdown, feature null rates
+  — per-game models saved to `data/models/clip_judge/{game}/model.pkl`; falls back to global model
+- Gold set evaluation (`pipeline/evaluate.py`) — labeled snapshots for regression detection
+  — `assets/gold_set/{game}/{bucket}/{stem}.meta.json` + `.truth.json`
+  — `run.py --add-to-gold-set GAME STEM DECISION [--notes TEXT]` adds a reviewed clip
+  — `run.py --evaluate [GAME]` re-scores all gold set clips and diffs against previous run
+  — bucket auto-assigned: easy_accept / easy_reject (system agreed) or hard_cases (system disagreed)
+- Review UI worthiness display — review.html shows context/hook/postability/final scores as
+  color-coded % bars before the signal table; system_decision + quarantine_reason shown inline
 
 ---
 
