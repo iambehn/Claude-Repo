@@ -437,6 +437,23 @@ hook_enforcer:
     yolo: 0.20
     audio: 0.10
 
+# ---------------------------------------------------------------------------
+# Training data export — active learning loop
+# ---------------------------------------------------------------------------
+# When enabled, every approve/reject in the review UI silently appends one
+# JSONL record to data/training_sets/clip_judge/YYYY-MM-DD.jsonl containing
+# all detector signals and the human decision as the label.
+#
+# These records are the raw material for a future Learned Fusion Model that
+# will replace hand-tuned weights in clip_judge.py.
+#
+# To backfill records from clips reviewed before this was added:
+#   python run.py --export-training-data marvel_rivals
+#   python run.py --export-training-data all
+training:
+  enabled: true
+  output_dir: "data/training_sets"
+
 pipeline:
   watch_interval_seconds: 30
 

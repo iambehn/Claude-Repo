@@ -206,6 +206,12 @@ def _handle_decision(game: str, stem: str, decision: str):
         meta["final_path"] = str(dest)
         meta_path.write_text(json.dumps(meta, indent=2))
 
+        try:
+            from utils.training_logger import log_review_decision
+            log_review_decision(meta, clip["clip_id"], game, CONFIG)
+        except Exception:
+            pass
+
     # Redirect to next pending clip (or back to queue if none)
     next_c = _next_clip(game, stem)
     if next_c:

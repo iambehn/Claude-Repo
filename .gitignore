@@ -44,6 +44,9 @@ rejected/**
 logs/**
 !logs/.gitkeep
 
+# Training data — potentially large; exclude from version control
+data/training_sets/
+
 # Assets — keep folder structure, ignore actual media files
 assets/music/**
 !assets/music/.gitkeep

@@ -481,6 +481,13 @@ def main() -> None:
         dest="audit_weapon_detector",
         help="Scan all clip directories for GAME and rank weapons that need better reference icons.",
     )
+    group.add_argument(
+        "--export-training-data",
+        metavar="GAME",
+        dest="export_training_data",
+        help="Backfill training records for all reviewed clips in GAME (or 'all') from inbox/. "
+             "Useful for exporting data from clips reviewed before training logging was added.",
+    )
     parser.add_argument(
         "--chat-log",
         metavar="PATH",
@@ -558,6 +565,33 @@ def main() -> None:
             f"{result['audited_clips']} clips audited, "
             f"{len(result['recommended_targets'])} targets recommended "
             f"→ {result.get('report_path') or 'no report'}"
+        )
+        sys.exit(0)
+
+    if args.export_training_data:
+        from utils.training_logger import log_review_decision
+        game_arg = args.export_training_data
+        games = list(config["games"].keys()) if game_arg == "all" else [game_arg]
+        inbox_root = Path(config["paths"]["inbox"])
+        total = exported = 0
+        for game in games:
+            game_dir = inbox_root / game
+            if not game_dir.exists():
+                continue
+            for meta_path in sorted(game_dir.glob("*.meta.json")):
+                try:
+                    meta = json.loads(meta_path.read_text())
+                except (json.JSONDecodeError, OSError):
+                    continue
+                if not meta.get("review_status"):
+                    continue
+                total += 1
+                clip_id = meta.get("clip_id") or meta_path.stem
+                if log_review_decision(meta, clip_id, game, config):
+                    exported += 1
+        logger.info(
+            f"[export_training] Exported {exported}/{total} reviewed clips to "
+            f"{config.get('training', {}).get('output_dir', 'data/training_sets')}/clip_judge/"
         )
         sys.exit(0)
 
