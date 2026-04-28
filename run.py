@@ -610,10 +610,22 @@ def main() -> None:
         game_filter = None if args.train_model == "all" else args.train_model
         result = train_model(game_filter=game_filter, config=config)
         if result["ok"]:
-            print(
-                f"Model trained on {result['n_samples']} samples "
-                f"(training accuracy={result['accuracy']:.1%}) → {result['model_path']}"
-            )
+            cv_mean = result.get("cv_accuracy_mean")
+            cv_std = result.get("cv_accuracy_std")
+            cv_f1 = result.get("cv_f1_mean")
+            train_acc = result.get("train_accuracy")
+            if cv_mean is not None:
+                acc_str = (
+                    f"CV accuracy={cv_mean:.1%} ±{cv_std:.1%}  F1={cv_f1:.1%}  "
+                    f"(train={train_acc:.1%})"
+                )
+            else:
+                acc_str = (
+                    f"train accuracy={train_acc:.1%} "
+                    f"[CV skipped — collect ≥10 labeled clips for reliable estimates]"
+                )
+            print(f"Model trained on {result['n_samples']} samples | {acc_str}")
+            print(f"Saved → {result['model_path']}")
             print("Top 5 features by weight:")
             for name, coef in result.get("top_features", [])[:5]:
                 print(f"  {name:<40} {coef:+.4f}")

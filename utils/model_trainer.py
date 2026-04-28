@@ -74,7 +74,8 @@ def train(game_filter: str | None = None, config: dict | None = None) -> dict[st
         import joblib
         import numpy as np
         from sklearn.linear_model import LogisticRegression
-        from sklearn.metrics import classification_report
+        from sklearn.metrics import accuracy_score
+        from sklearn.model_selection import StratifiedKFold, cross_validate
         from sklearn.pipeline import Pipeline
         from sklearn.preprocessing import StandardScaler
     except ImportError as exc:
@@ -111,15 +112,40 @@ def train(game_filter: str | None = None, config: dict | None = None) -> dict[st
         ("clf", LogisticRegression(max_iter=1000, class_weight="balanced", random_state=42)),
     ])
 
+    # Cross-validation: honest held-out estimate. Fall back to train accuracy when
+    # there aren't enough samples for a meaningful split (need ≥2 per fold per class).
+    _MIN_CV_SAMPLES = 10
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+
+        if n >= _MIN_CV_SAMPLES:
+            n_splits = min(5, n // 2)
+            cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+            cv_results = cross_validate(
+                pipeline, X, y, cv=cv,
+                scoring=["accuracy", "f1", "precision", "recall"],
+                return_train_score=False,
+            )
+            cv_accuracy_mean = round(float(cv_results["test_accuracy"].mean()), 3)
+            cv_accuracy_std = round(float(cv_results["test_accuracy"].std()), 3)
+            cv_f1_mean = round(float(cv_results["test_f1"].mean()), 3)
+            cv_note = (
+                f"{n_splits}-fold CV accuracy={cv_accuracy_mean:.1%} "
+                f"±{cv_accuracy_std:.1%}  F1={cv_f1_mean:.1%}"
+            )
+        else:
+            cv_accuracy_mean = cv_accuracy_std = cv_f1_mean = None
+            cv_note = (
+                f"CV skipped (need ≥{_MIN_CV_SAMPLES} samples, have {n}) — "
+                "train accuracy shown below is overfit-prone"
+            )
+            logger.warning(f"[model_trainer] {cv_note}")
+
+        # Fit final model on ALL data after CV evaluation
         pipeline.fit(X, y)
 
-    y_pred = pipeline.predict(X)
-    report = classification_report(
-        y, y_pred, target_names=["rejected", "accepted"], output_dict=True, zero_division=0
-    )
-    accuracy = round(float(report["accuracy"]), 3)
+    train_accuracy = round(float(accuracy_score(y, pipeline.predict(X))), 3)
 
     model_dir.mkdir(parents=True, exist_ok=True)
     model_path = model_dir / "model.pkl"
@@ -133,7 +159,10 @@ def train(game_filter: str | None = None, config: dict | None = None) -> dict[st
             "n_samples": n,
             "n_accepted": pos_count,
             "n_rejected": neg_count,
-            "training_accuracy": accuracy,
+            "train_accuracy": train_accuracy,
+            "cv_accuracy_mean": cv_accuracy_mean,
+            "cv_accuracy_std": cv_accuracy_std,
+            "cv_f1_mean": cv_f1_mean,
             "game_filter": game_filter or "all",
         }, fh, indent=2)
 
@@ -148,12 +177,15 @@ def train(game_filter: str | None = None, config: dict | None = None) -> dict[st
     logger.info("[model_trainer] Top feature weights (|coef|):")
     for name, coef in top:
         logger.info(f"  {name:<40} {coef:+.4f}")
-    logger.info(f"[model_trainer] Saved to {model_path} (training accuracy={accuracy:.1%})")
+    logger.info(f"[model_trainer] Saved to {model_path} | {cv_note}")
 
     return {
         "ok": True,
         "n_samples": n,
-        "accuracy": accuracy,
+        "cv_accuracy_mean": cv_accuracy_mean,
+        "cv_accuracy_std": cv_accuracy_std,
+        "cv_f1_mean": cv_f1_mean,
+        "train_accuracy": train_accuracy,
         "model_path": str(model_path),
         "top_features": top,
     }
