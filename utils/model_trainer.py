@@ -84,7 +84,9 @@ def train(game_filter: str | None = None, config: dict | None = None) -> dict[st
 
     cfg = (config or {}).get("training", {})
     data_dir = Path(cfg.get("output_dir", "data/training_sets")) / "clip_judge"
-    model_dir = Path((config or {}).get("model", {}).get("path", _DEFAULT_MODEL_DIR))
+    base_dir = Path((config or {}).get("model", {}).get("path", _DEFAULT_MODEL_DIR))
+    # Game-specific training saves to {base}/{game}/; cross-game to {base}/
+    model_dir = base_dir / game_filter if (game_filter and game_filter != "all") else base_dir
 
     records = _load_records(data_dir, game_filter)
 

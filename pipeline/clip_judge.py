@@ -326,7 +326,7 @@ def _moment_matches(moment: "game_pack.Moment", meta: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def evaluate(meta_path: Path, pack: game_pack.GamePack, config: dict) -> dict:
+def evaluate(meta_path: Path, pack: game_pack.GamePack, config: dict, game: str | None = None) -> dict:
     """Compute worthiness block and write it to meta_path.
 
     Idempotent: returns the cached block if `worthiness.decision` already exists.
@@ -364,7 +364,7 @@ def evaluate(meta_path: Path, pack: game_pack.GamePack, config: dict) -> dict:
     learned_score = None
     try:
         from utils.model_inference import predict_approval
-        learned_score = predict_approval(meta, config)
+        learned_score = predict_approval(meta, config, game=game)
     except Exception:
         pass
     meta.pop("worthiness")
@@ -458,7 +458,7 @@ def run_clip_judge(clip_path: str | Path, game: str, config: dict) -> dict:
         return {"decision": "skip", "quarantine_reason": None}
 
     pack = game_pack.load(game)
-    worthiness = evaluate(meta_path, pack, config)
+    worthiness = evaluate(meta_path, pack, config, game=game)
 
     logger.info(
         f"[clip_judge] {clip.name}: decision={worthiness['decision']}"

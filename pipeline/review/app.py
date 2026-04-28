@@ -130,6 +130,12 @@ def _get_pending_clips() -> list[dict]:
                 "keywords": meta.get("keywords", []),
                 "quality_tag": meta.get("quality_tag", ""),
                 "learned_score": worthiness.get("learned_score"),
+                "context_confidence": worthiness.get("context_confidence"),
+                "hook_confidence": worthiness.get("hook_confidence"),
+                "postability_score": worthiness.get("postability_score"),
+                "final_score": worthiness.get("final_score"),
+                "system_decision": worthiness.get("decision"),
+                "quarantine_reason": worthiness.get("quarantine_reason"),
             })
 
     clips.sort(key=lambda c: c["score"], reverse=True)
@@ -508,7 +514,7 @@ def api_enrich_clip(game: str, reason: str, stem: str):
 
     try:
         pack = gp.load(game)
-        worthiness = evaluate(meta_path, pack, CONFIG)
+        worthiness = evaluate(meta_path, pack, CONFIG, game=game)
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
 

@@ -1,9 +1,9 @@
 """
 Lazy-loaded inference for the Learned Fusion Model.
 
-Loads model.pkl from data/models/clip_judge/ on first call and caches it
-for the process lifetime. Returns None gracefully when no model exists, so
-the pipeline continues uninterrupted during the data-accumulation phase.
+Tries the game-specific model first (data/models/clip_judge/{game}/model.pkl),
+then falls back to the global model (data/models/clip_judge/model.pkl).
+Returns None gracefully when neither exists so the pipeline runs uninterrupted.
 """
 from __future__ import annotations
 
@@ -18,21 +18,32 @@ logger = get_logger(__name__)
 _DEFAULT_MODEL_DIR = "data/models/clip_judge"
 
 
-@lru_cache(maxsize=1)
-def _load_pipeline(model_dir: str) -> Any:
-    """Load the sklearn Pipeline from disk. Result cached for process lifetime."""
-    model_path = Path(model_dir) / "model.pkl"
-    if not model_path.exists():
-        return None
-    try:
-        import joblib
-        return joblib.load(model_path)
-    except Exception as exc:
-        logger.debug(f"[model_inference] Failed to load model: {exc}")
-        return None
+@lru_cache(maxsize=8)
+def _load_pipeline(model_dir: str, game: str) -> Any:
+    """Load the best available model for game. Cached per (model_dir, game)."""
+    import joblib
+
+    # Game-specific model takes precedence over global model
+    candidates = []
+    if game:
+        candidates.append(Path(model_dir) / game / "model.pkl")
+    candidates.append(Path(model_dir) / "model.pkl")
+
+    for path in candidates:
+        if path.exists():
+            try:
+                return joblib.load(path)
+            except Exception as exc:
+                logger.debug(f"[model_inference] Failed to load {path}: {exc}")
+
+    return None
 
 
-def predict_approval(meta: dict, config: dict | None = None) -> float | None:
+def predict_approval(
+    meta: dict,
+    config: dict | None = None,
+    game: str | None = None,
+) -> float | None:
     """Return predicted approval probability (0.0–1.0), or None if no model exists.
 
     Never raises — any failure returns None so callers can treat it as optional.
@@ -43,7 +54,7 @@ def predict_approval(meta: dict, config: dict | None = None) -> float | None:
         from utils.model_trainer import features_to_vector
 
         model_dir = (config or {}).get("model", {}).get("path", _DEFAULT_MODEL_DIR)
-        pipeline = _load_pipeline(model_dir)
+        pipeline = _load_pipeline(model_dir, game or "")
         if pipeline is None:
             return None
 

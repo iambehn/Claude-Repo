@@ -314,7 +314,7 @@ def run_enrich_quarantine(game_arg: str, config: dict) -> None:
                     run_roi_matcher(clip_file, game, config)
 
                 try:
-                    worthiness = evaluate(meta_path, pack, config)
+                    worthiness = evaluate(meta_path, pack, config, game=game)
                 except Exception as exc:
                     logger.warning(f"[enrich] evaluate() failed for {clip_file.name}: {exc}")
                     continue
@@ -402,6 +402,86 @@ def run_scan_vod(
         f"[proxy] {len(clips)} clip(s) staged in inbox/{game}/. "
         f"Run: python run.py --game {game}"
     )
+
+
+def _add_to_gold_set(game: str, stem: str, decision: str, config: dict) -> dict:
+    """Copy a clip's meta.json snapshot into assets/gold_set/ with a truth file.
+
+    Searches inbox, accepted, and rejected directories for a meta file whose
+    clip_id or stem matches. Auto-assigns bucket based on whether the system's
+    decision matches the human label:
+        system == human  → easy_accept / easy_reject
+        system != human  → hard_cases
+    """
+    import shutil
+    from datetime import date
+
+    search_roots = [
+        Path(config["paths"]["inbox"]) / game,
+        Path(config["paths"]["accepted"]) / game,
+        Path(config["paths"]["rejected"]) / game,
+    ]
+
+    meta: dict | None = None
+    for root in search_roots:
+        candidate = root / f"{stem}.meta.json"
+        if candidate.exists():
+            try:
+                meta = json.loads(candidate.read_text())
+            except (json.JSONDecodeError, OSError):
+                continue
+            break
+        # Slow path: match by clip_id field
+        if root.exists():
+            for mf in root.glob("*.meta.json"):
+                try:
+                    m = json.loads(mf.read_text())
+                    if m.get("clip_id") == stem or mf.stem == stem:
+                        meta = m
+                        break
+                except (json.JSONDecodeError, OSError):
+                    continue
+        if meta is not None:
+            break
+
+    if meta is None:
+        return {"ok": False, "error": f"No meta.json found for '{stem}' in {game} inbox/accepted/rejected"}
+
+    # Infer bucket from system vs human decision
+    sys_decision = (meta.get("worthiness") or {}).get("decision", "")
+    if sys_decision == decision:
+        bucket = f"easy_{decision}"
+    else:
+        bucket = "hard_cases"
+
+    gold_dir = Path("assets/gold_set") / game / bucket
+    gold_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy frozen meta snapshot (strip review_status/final_path — those are post-review)
+    snapshot = {k: v for k, v in meta.items() if k not in ("review_status", "reviewed_at", "final_path")}
+    snapshot.pop("worthiness", None)  # evaluate.py re-scores from scratch
+    dest_meta = gold_dir / f"{stem}.meta.json"
+    dest_meta.write_text(json.dumps(snapshot, indent=2))
+
+    # Write truth file
+    worthiness = meta.get("worthiness") or {}
+    truth = {
+        "clip_id": meta.get("clip_id", stem),
+        "game": game,
+        "expected_decision": decision,
+        "difficulty": "easy" if sys_decision == decision else "hard",
+        "labels": [],
+        "notes": "",
+        "added_at": date.today().isoformat(),
+        "signal_truth": {
+            k: worthiness.get(k)
+            for k in ("context_confidence", "hook_confidence", "postability_score", "final_score")
+            if worthiness.get(k) is not None
+        },
+    }
+    (gold_dir / f"{stem}.truth.json").write_text(json.dumps(truth, indent=2))
+
+    return {"ok": True, "bucket": bucket}
 
 
 def main() -> None:
@@ -506,6 +586,15 @@ def main() -> None:
         dest="training_stats",
         help="Print a summary of collected training records in data/training_sets/. "
              "Optional GAME filters to one game (default: all games).",
+    )
+    group.add_argument(
+        "--add-to-gold-set",
+        nargs=3,
+        metavar=("GAME", "STEM", "DECISION"),
+        dest="add_to_gold_set",
+        help="Add a reviewed clip to the gold set for regression testing. "
+             "DECISION must be accept | quarantine | reject. "
+             "Example: --add-to-gold-set marvel_rivals clip_abc123 accept",
     )
     parser.add_argument(
         "--chat-log",
@@ -612,6 +701,23 @@ def main() -> None:
             f"[export_training] Exported {exported}/{total} reviewed clips to "
             f"{config.get('training', {}).get('output_dir', 'data/training_sets')}/clip_judge/"
         )
+        sys.exit(0)
+
+    if args.add_to_gold_set:
+        game, stem, decision = args.add_to_gold_set
+        decision = decision.lower()
+        if decision not in ("accept", "quarantine", "reject"):
+            logger.error("DECISION must be one of: accept, quarantine, reject")
+            sys.exit(1)
+        result = _add_to_gold_set(game, stem, decision, config)
+        if result["ok"]:
+            logger.info(
+                f"[gold_set] Added {stem} → assets/gold_set/{game}/{result['bucket']}/"
+                f"  (decision={decision})"
+            )
+        else:
+            logger.error(f"[gold_set] {result['error']}")
+            sys.exit(1)
         sys.exit(0)
 
     if args.training_stats is not None:

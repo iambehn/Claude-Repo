@@ -225,6 +225,40 @@
       </div>
       {% endif %}
 
+      <!-- Clip judge scores -->
+      {% if clip.context_confidence is not none %}
+      <div class="meta-section">
+        <h3>Clip judge</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          {% for label, val in [
+            ('Context',     clip.context_confidence),
+            ('Hook',        clip.hook_confidence),
+            ('Postability', clip.postability_score),
+            ('Final',       clip.final_score),
+          ] %}
+          {% set pct = (val * 100) | round | int %}
+          {% set fg = '#4ade80' if val >= 0.65 else ('#fbbf24' if val >= 0.40 else '#f87171') %}
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:5px 0;font-size:11px;color:var(--muted);width:80px;">{{ label }}</td>
+            <td style="padding:5px 0;font-size:12px;">
+              <span style="color:{{ fg }};">{{ pct }}%</span>
+              <span style="display:inline-block;width:{{ pct }}px;max-width:120px;height:4px;
+                           background:{{ fg }};border-radius:2px;margin-left:8px;vertical-align:middle;"></span>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if clip.system_decision %}
+          <tr>
+            <td style="padding:5px 0;font-size:11px;color:var(--muted);width:80px;">Decision</td>
+            <td style="padding:5px 0;font-size:12px;color:var(--muted);">
+              {{ clip.system_decision }}{% if clip.quarantine_reason %} ({{ clip.quarantine_reason }}){% endif %}
+            </td>
+          </tr>
+          {% endif %}
+        </table>
+      </div>
+      {% endif %}
+
       <!-- Signals -->
       <div class="meta-section">
         <h3>Clip signals</h3>
