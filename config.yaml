@@ -471,6 +471,21 @@ model:
   path: "data/models/clip_judge"
   blend_weight: 0.0
 
+# ---------------------------------------------------------------------------
+# Orchestrator — fault-tolerant clip state machine
+# ---------------------------------------------------------------------------
+# python run.py --orchestrate [GAME]
+#
+# Wraps the standard pipeline with per-clip exception isolation, retry
+# tracking, and resumable state stored in each clip's meta.json
+# "orchestrator" block. One bad clip no longer stops the rest.
+#
+# max_attempts:           clips that fail this many times are quarantined
+# zombie_timeout_minutes: clips stuck in "running" longer than this are reset
+orchestrator:
+  max_attempts: 3
+  zombie_timeout_minutes: 10
+
 pipeline:
   watch_interval_seconds: 30
 

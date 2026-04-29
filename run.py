@@ -605,6 +605,16 @@ def main() -> None:
         help="Run the gold set evaluation scorecard. "
              "Optional GAME filters to one game slug (default: all games).",
     )
+    group.add_argument(
+        "--orchestrate",
+        metavar="GAME",
+        nargs="?",
+        const="all",
+        dest="orchestrate",
+        help="Run the fault-tolerant orchestrated pipeline for GAME (or 'all'). "
+             "Resumable: picks up from the last recorded stage in each clip's meta.json. "
+             "Retries failures up to orchestrator.max_attempts before quarantining.",
+    )
     parser.add_argument(
         "--chat-log",
         metavar="PATH",
@@ -813,6 +823,23 @@ def main() -> None:
         else:
             logger.error(f"[train_model] Failed: {result.get('error')}")
             sys.exit(1)
+        sys.exit(0)
+
+    if args.orchestrate is not None:
+        from pipeline.orchestrator import run_orchestrator
+        games = (
+            list(config["games"].keys()) if args.orchestrate == "all" else [args.orchestrate]
+        )
+        totals: dict[str, int] = {"processed": 0, "quarantined": 0, "failed": 0, "skipped": 0}
+        for game in games:
+            result = run_orchestrator(game, config)
+            for k in totals:
+                totals[k] += result.get(k, 0)
+        logger.info(
+            f"[orchestrator] All games done — "
+            f"processed={totals['processed']} quarantined={totals['quarantined']} "
+            f"failed={totals['failed']} skipped={totals['skipped']}"
+        )
         sys.exit(0)
 
     # --- Pipeline-running commands: validate every game pack first ---

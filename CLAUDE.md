@@ -42,6 +42,10 @@ python run.py --game all             # process all games
 python run.py --watch                # continuous loop
 python run.py --enrich-quarantine marvel_rivals  # re-evaluate quarantined clips
 
+# Orchestrated pipeline — fault-tolerant, resumable, per-clip retry
+python run.py --orchestrate marvel_rivals   # run orchestrator for one game
+python run.py --orchestrate all             # run orchestrator for all games
+
 # VOD mining — finds highlight windows before downloading full video
 python run.py --scan-vod https://twitch.tv/videos/12345 marvel_rivals
 python run.py --scan-vod https://twitch.tv/videos/12345 marvel_rivals --chat-log chat.log
@@ -156,6 +160,11 @@ The clip judge decides what those events mean.
   — bucket auto-assigned: easy_accept / easy_reject (system agreed) or hard_cases (system disagreed)
 - Review UI worthiness display — review.html shows context/hook/postability/final scores as
   color-coded % bars before the signal table; system_decision + quarantine_reason shown inline
+- Pipeline orchestrator (`pipeline/orchestrator.py`) — deterministic clip state machine;
+  wraps all stages with per-clip exception isolation and retry tracking (max_attempts);
+  resumable via meta.json["orchestrator"] block; zombie detection resets stuck clips;
+  infers initial stage from existing meta so --game-processed clips skip cleanly
+  — `run.py --orchestrate [GAME]`; config: orchestrator.max_attempts, zombie_timeout_minutes
 
 ---
 
