@@ -556,6 +556,27 @@ def main() -> None:
              "Args: GAME URL (e.g. marvel_rivals https://marvelrivals.fandom.com/wiki/Heroes).",
     )
     group.add_argument(
+        "--refresh-templates",
+        metavar="GAME",
+        dest="refresh_templates",
+        help="Scan training_images/ and templates/ for GAME, crop screenshots to ROI regions, "
+             "and register all candidates in hud.yaml templates:. Safe to re-run any time.",
+    )
+    group.add_argument(
+        "--calibrate-templates",
+        metavar="GAME",
+        dest="calibrate_templates",
+        help="Sample frames from processed clips for GAME, analyse matchTemplate confidence "
+             "distributions, and auto-tune match_threshold in hud.yaml.",
+    )
+    group.add_argument(
+        "--audit-templates",
+        metavar="GAME",
+        dest="audit_templates",
+        help="Report coverage gaps (missing images, unregistered templates) and quality "
+             "issues (low/high hit rates) for GAME's template library.",
+    )
+    group.add_argument(
         "--scrape-images",
         metavar="GAME",
         dest="scrape_images",
@@ -735,6 +756,41 @@ def main() -> None:
         for warning in result.get("warnings") or []:
             logger.warning(f"[wiki_enrich] {warning}")
         sys.exit(0 if result["status"] in ("ok", "partial") else 1)
+
+    if args.refresh_templates:
+        from pipeline.template_manager import refresh_templates
+        result = refresh_templates(args.refresh_templates, config)
+        logger.info(
+            f"[refresh_templates] {args.refresh_templates}: "
+            f"+{result['added']} added  ~{result['updated']} updated  "
+            f"-{result['removed']} removed  ={result['skipped']} unchanged  "
+            f"({result['total']} total in hud.yaml)"
+        )
+        sys.exit(0)
+
+    if args.calibrate_templates:
+        from pipeline.template_manager import calibrate_thresholds
+        result = calibrate_thresholds(args.calibrate_templates, config)
+        if "error" in result:
+            logger.error(f"[calibrate_templates] {result['error']}")
+            sys.exit(1)
+        logger.info(
+            f"[calibrate_templates] {args.calibrate_templates}: "
+            f"{result['calibrated']} thresholds updated  "
+            f"{result['unchanged']} unchanged  "
+            f"{result['insufficient_data']} need more clip data"
+        )
+        if result.get("suggestions"):
+            print("\nSuggested thresholds:")
+            for tid, val in sorted(result["suggestions"].items()):
+                print(f"  {tid:<45} {val:.3f}")
+        sys.exit(0)
+
+    if args.audit_templates:
+        from pipeline.template_manager import audit_templates
+        result = audit_templates(args.audit_templates, config)
+        total_issues = sum(len(v) for v in result["issues"].values())
+        sys.exit(1 if total_issues else 0)
 
     if args.scrape_images:
         from pipeline.image_scraper import scrape_images_for_game
