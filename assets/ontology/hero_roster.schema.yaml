@@ -1,0 +1,55 @@
+# Hero Roster Schema — universal contract for playable hero entities
+# Version: 1
+#
+# One record per playable hero/agent/legend per game.
+# Instantiated in assets/games/{game}/entities.yaml.
+#
+# Required fields are marked (required). All others are optional but strongly
+# recommended before setting qa_status: verified.
+#
+schema: hero_roster
+version: "1"
+
+fields:
+  game_id:
+    type: string
+    required: true
+    note: "slug matching assets/games/{game_id}/"
+
+  hero_id:
+    type: string
+    required: true
+    note: "slugified, e.g. jeff_the_land_shark, soldier_76"
+
+  display_name:
+    type: string
+    required: true
+
+  role:
+    type: enum
+    values: [assault, tank, support, recon, flex, unspecified]
+    note: "normalise per-game role names to this vocabulary"
+
+  aliases:
+    type: list[string]
+    note: "alternative names for fuzzy matching (abbreviations, nicknames)"
+
+  patch_tag:
+    type: string
+    example: "2026-04"
+    note: "game version when this entry was last verified"
+
+  source_page:
+    type: string
+    note: "canonical wiki or official publisher page URL used as the primary source"
+
+  source_license_note:
+    type: enum
+    values: [internal_use_only, internal_review_required, cc_by_sa, public_domain]
+    default: internal_review_required
+
+  qa_status:
+    type: enum
+    values: [draft, verified, deprecated]
+    default: draft
+    note: "draft = scraped but unreviewed; verified = human-confirmed; deprecated = removed from game"

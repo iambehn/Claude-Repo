@@ -648,6 +648,13 @@ templates: []
 """
     )
 
+    (pack_dir / "medals.yaml").write_text(
+        """medals:
+  # TODO: add medal/multi-kill entries using assets/games/_template/medals.yaml as a guide
+  # Schema: assets/ontology/medals.schema.yaml
+"""
+    )
+
     # Clear any stale cache entry so the next load re-reads from disk.
     _cache.pop(slug, None)
 
@@ -663,7 +670,8 @@ def available_slugs(games_root: Path | None = None) -> list[str]:
     root = games_root or GAMES_ROOT
     if not root.exists():
         return []
-    return sorted(d.name for d in root.iterdir() if d.is_dir())
+    # Directories starting with '_' are reserved (e.g. _template) and not live game packs.
+    return sorted(d.name for d in root.iterdir() if d.is_dir() and not d.name.startswith("_"))
 
 
 def ensure_game_packs_valid(config: dict) -> None:

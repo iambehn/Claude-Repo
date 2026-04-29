@@ -1,0 +1,24 @@
+# Game metadata template
+# Schema: assets/ontology/hero_roster.schema.yaml (game-level fields)
+#
+# Copy this file to assets/games/{game_id}/game.yaml and replace every
+# REPLACE_ME placeholder before running any pipeline stages.
+#
+# After filling in:
+#   python run.py --wiki-enrich {game_id} https://wiki.fandom.com/wiki/Heroes
+#
+game_id: REPLACE_ME          # slug, e.g. overwatch_2  (must match directory name)
+display_name: REPLACE_ME     # e.g. "Overwatch 2"
+genre: REPLACE_ME            # fps | hero_shooter | extraction | tactical | arena
+perspective: first_person    # first_person | third_person
+camera_mode: first_person    # first_person | third_person | isometric
+ui_version: unknown          # e.g. "2026-04"  — update each patch
+patch_tag: REPLACE_ME        # e.g. "2026-04"
+
+detectors:
+  kill_feed: false           # enable after tuning kill_colors in hud.yaml
+  weapon_detector: false     # enable after adding weapon entities
+  audio_detector: false      # can enable immediately; tune spike thresholds first
+
+resolution_profiles:
+  - 1920x1080                # add 2560x1440, 3840x2160 when ROIs are validated at those resolutions

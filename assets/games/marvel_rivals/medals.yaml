@@ -1,0 +1,142 @@
+# Marvel Rivals — medal / multi-kill icon definitions
+# Schema: assets/ontology/medals.schema.yaml
+#
+# Status: draft placeholders — source_url and CV fields are null until
+# the asset ingester runs against official Marvel Rivals pages.
+#
+# Populate source_url by locating medal icons on:
+#   https://marvelrivals.fandom.com/wiki/ or official pages
+# Then run the asset normalizer to generate master_path / template_path / mask_path.
+#
+medals:
+  - asset_id: marvel_rivals.medal.elimination
+    medal_id: elimination
+    game_id: marvel_rivals
+    display_name: Elimination
+    medal_class: kill
+    rarity: common
+    source_url: ~
+    fetch_timestamp: ~
+    file_hash: ~
+    is_temporary_art: false
+    master_path: ~
+    template_path: ~
+    mask_path: ~
+    roi_ref: hud.medal_popup
+    match_method: TM_CCORR_NORMED
+    threshold: 0.93
+    scale_set: [0.75, 0.875, 1.0, 1.125]
+    temporal_window: 4
+    source_license_note: internal_review_required
+    qa_status: draft
+    patch_tag: "2026-04"
+
+  - asset_id: marvel_rivals.medal.double_kill
+    medal_id: double_kill
+    game_id: marvel_rivals
+    display_name: Double Kill
+    medal_class: multikill
+    rarity: common
+    source_url: ~
+    fetch_timestamp: ~
+    file_hash: ~
+    is_temporary_art: false
+    master_path: ~
+    template_path: ~
+    mask_path: ~
+    roi_ref: hud.medal_popup
+    match_method: TM_CCORR_NORMED
+    threshold: 0.93
+    scale_set: [0.75, 0.875, 1.0, 1.125]
+    temporal_window: 4
+    source_license_note: internal_review_required
+    qa_status: draft
+    patch_tag: "2026-04"
+
+  - asset_id: marvel_rivals.medal.triple_kill
+    medal_id: triple_kill
+    game_id: marvel_rivals
+    display_name: Triple Kill
+    medal_class: multikill
+    rarity: rare
+    source_url: ~
+    fetch_timestamp: ~
+    file_hash: ~
+    is_temporary_art: false
+    master_path: ~
+    template_path: ~
+    mask_path: ~
+    roi_ref: hud.medal_popup
+    match_method: TM_CCORR_NORMED
+    threshold: 0.93
+    scale_set: [0.75, 0.875, 1.0, 1.125]
+    temporal_window: 4
+    source_license_note: internal_review_required
+    qa_status: draft
+    patch_tag: "2026-04"
+
+  - asset_id: marvel_rivals.medal.quad_kill
+    medal_id: quad_kill
+    game_id: marvel_rivals
+    display_name: Quad Kill
+    medal_class: multikill
+    rarity: epic
+    source_url: ~
+    fetch_timestamp: ~
+    file_hash: ~
+    is_temporary_art: false
+    master_path: ~
+    template_path: ~
+    mask_path: ~
+    roi_ref: hud.medal_popup
+    match_method: TM_CCORR_NORMED
+    threshold: 0.93
+    scale_set: [0.75, 0.875, 1.0, 1.125]
+    temporal_window: 4
+    source_license_note: internal_review_required
+    qa_status: draft
+    patch_tag: "2026-04"
+
+  - asset_id: marvel_rivals.medal.mvp
+    medal_id: mvp
+    game_id: marvel_rivals
+    display_name: MVP
+    medal_class: objective
+    rarity: epic
+    source_url: ~
+    fetch_timestamp: ~
+    file_hash: ~
+    is_temporary_art: false
+    master_path: ~
+    template_path: ~
+    mask_path: ~
+    roi_ref: hud.medal_popup
+    match_method: TM_CCORR_NORMED
+    threshold: 0.93
+    scale_set: [0.75, 0.875, 1.0, 1.125]
+    temporal_window: 4
+    source_license_note: internal_review_required
+    qa_status: draft
+    patch_tag: "2026-04"
+
+  - asset_id: marvel_rivals.medal.team_wipe
+    medal_id: team_wipe
+    game_id: marvel_rivals
+    display_name: Team Wipe
+    medal_class: multikill
+    rarity: epic
+    source_url: ~
+    fetch_timestamp: ~
+    file_hash: ~
+    is_temporary_art: false
+    master_path: ~
+    template_path: ~
+    mask_path: ~
+    roi_ref: hud.medal_popup
+    match_method: TM_CCORR_NORMED
+    threshold: 0.93
+    scale_set: [0.75, 0.875, 1.0, 1.125]
+    temporal_window: 4
+    source_license_note: internal_review_required
+    qa_status: draft
+    patch_tag: "2026-04"

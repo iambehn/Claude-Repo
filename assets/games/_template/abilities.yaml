@@ -1,0 +1,40 @@
+# Abilities template
+# Schema: assets/ontology/hero_abilities.schema.yaml
+#
+# One entry per ability per hero. Populate after entities.yaml is verified.
+# The 'id' and 'character_id' fields are validated by game_pack.py —
+# character_id must reference a hero entity in entities.yaml.
+#
+# ability_family vocabulary:
+#   primary | secondary | tactical | signature | ultimate | passive | teamup | unspecified
+#
+# CV guidance:
+#   Transparent ability icons → TM_CCORR_NORMED + mask_path, threshold 0.90–0.96
+#   roi_ref must name a valid ROI in hud.yaml
+#
+abilities:
+  - asset_id: GAME_ID.HERO_ID.ability.ABILITY_ID
+    id: ABILITY_ID                    # e.g. helix_rockets
+    character_id: HERO_ID             # must match an entities.yaml hero id
+    display_name: REPLACE_ME          # e.g. "Helix Rockets"
+    ability_family: unspecified       # see vocabulary above
+    submode: ~                        # e.g. "heal_beam" vs "damage_beam" for multi-state abilities
+    worthiness_boost: 0.10            # score multiplier (0.05 utility → 0.25 ultimate)
+    # Ingestion provenance (populated by wiki_enrichment.py)
+    source_url: ~
+    fetch_timestamp: ~
+    file_hash: ~
+    is_temporary_art: false
+    # Asset paths (populated after asset download + normalization)
+    master_path: ~                    # 256x256 RGBA master
+    template_path: ~                  # working OpenCV template
+    mask_path: ~
+    # OpenCV matching parameters
+    roi_ref: hud.ability_primary      # update per ability slot
+    match_method: TM_CCORR_NORMED
+    threshold: 0.92
+    scale_set: [0.75, 0.875, 1.0, 1.125]
+    temporal_window: 3
+    source_license_note: internal_review_required
+    qa_status: draft
+    patch_tag: REPLACE_ME

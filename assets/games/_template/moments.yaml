@@ -1,0 +1,77 @@
+# Moments / highlight event template
+# Schema: assets/ontology/events.schema.yaml (event taxonomy)
+#
+# Moments define what counts as a "highlight" for this game.
+# The clip judge reads these and applies score_weight multipliers when
+# the evidence criteria are met.
+#
+# evidence field keys (all optional):
+#   kill_count_min         (int)   — minimum kills in the window
+#   within_window_seconds  (float) — time window for multi-kill grouping
+#   headshot_count_min     (int)   — minimum headshots
+#   audio_spike_after_lull (bool)  — clutch/comeback detection
+#   ability_class          (str)   — "ultimate" | "signature" | "teamup"
+#   kill_in_final_seconds  (int)   — finish in the last N seconds
+#   kill_within_seconds    (float) — early hook (kill in first N seconds)
+#
+moments:
+  - id: early_hook
+    category: hook
+    description: Kill in the first 1.5 seconds (hook enforcer complement)
+    evidence:
+      kill_within_seconds: 1.5
+    score_weight: 1.10
+
+  - id: double_kill
+    category: multi_kill
+    description: Two kills within a short window
+    evidence:
+      kill_count_min: 2
+      within_window_seconds: 6.0
+    score_weight: 1.20
+
+  - id: triple_kill
+    category: multi_kill
+    description: Three kills within a short window
+    evidence:
+      kill_count_min: 3
+      within_window_seconds: 8.0
+    score_weight: 1.40
+
+  - id: quad_kill
+    category: multi_kill
+    description: Four kills within a short window
+    evidence:
+      kill_count_min: 4
+      within_window_seconds: 10.0
+    score_weight: 1.60
+
+  - id: ace
+    category: multi_kill
+    description: Full team wipe (5 kills)
+    evidence:
+      kill_count_min: 5
+      within_window_seconds: 15.0
+    score_weight: 1.75
+
+  - id: precision_play
+    category: precision
+    description: Multi-kill with majority headshots
+    evidence:
+      kill_count_min: 2
+      headshot_count_min: 2
+    score_weight: 1.30
+
+  - id: clutch
+    category: clutch
+    description: Kill after a period of silence (comeback or 1vN)
+    evidence:
+      audio_spike_after_lull: true
+    score_weight: 1.25
+
+  - id: ability_highlight
+    category: ability_play
+    description: Kill using ultimate or signature ability
+    evidence:
+      ability_class: ultimate
+    score_weight: 1.35

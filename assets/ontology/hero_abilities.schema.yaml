@@ -1,0 +1,120 @@
+# Hero Abilities Schema — universal contract for ability + icon CV assets
+# Version: 1
+#
+# One record per ability per hero. Extends the existing abilities.yaml with
+# CV-specific fields so OpenCV can locate and match ability icons in HUD footage.
+#
+# OpenCV method guidance:
+#   Transparent HUD icons → TM_CCORR_NORMED + mask_path, threshold 0.90–0.96
+#   Opaque portrait crops → TM_CCOEFF_NORMED (no mask), threshold 0.86–0.92
+#   Only TM_CCORR_NORMED and TM_SQDIFF support masks in OpenCV.
+#
+schema: hero_abilities
+version: "1"
+
+fields:
+  asset_id:
+    type: string
+    required: true
+    note: "globally unique ID: {game_id}.{hero_id}.ability.{ability_id}"
+    example: "marvel_rivals.jeff_the_land_shark.ability.joyful_splash"
+
+  game_id:    {type: string, required: true}
+  hero_id:    {type: string, required: true}
+  ability_id: {type: string, required: true}
+  display_name: {type: string, required: true}
+
+  ability_family:
+    type: enum
+    values: [primary, secondary, tactical, signature, ultimate, passive, teamup, unspecified]
+    note: "use 'teamup' for hero-shooter team-up abilities; 'tactical' for extraction-shooter tacticals"
+
+  submode:
+    type: string
+    note: "for multi-state abilities, e.g. 'heal_beam' vs 'damage_beam' for Mercy's staff"
+
+  worthiness_boost:
+    type: float
+    note: "score multiplier applied by clip_judge when this ability is detected; existing field"
+
+  # ---------------------------------------------------------------------------
+  # Ingestion provenance — populated by wiki_enrichment.py on download
+  # ---------------------------------------------------------------------------
+  source_url:
+    type: string
+    note: "direct URL to the source icon image"
+
+  fetch_timestamp:
+    type: float
+    note: "Unix timestamp of the last successful fetch"
+
+  file_hash:
+    type: string
+    note: "SHA-256 hex digest of the downloaded master PNG; used to detect upstream changes"
+
+  is_temporary_art:
+    type: bool
+    default: false
+    note: "set true for games in early access/beta where HUD art changes frequently (e.g. Deadlock)"
+
+  # ---------------------------------------------------------------------------
+  # Local asset paths
+  # ---------------------------------------------------------------------------
+  master_path:
+    type: string
+    note: "256x256 normalized RGBA PNG master; preserve original before deriving templates"
+
+  template_path:
+    type: string
+    note: "working template for OpenCV, e.g. assets/games/{game}/templates/abilities/{id}.64.png"
+
+  mask_path:
+    type: string
+    note: "alpha mask PNG for TM_CCORR_NORMED; same dimensions as template_path"
+
+  # ---------------------------------------------------------------------------
+  # OpenCV matching parameters
+  # ---------------------------------------------------------------------------
+  roi_ref:
+    type: string
+    note: "name of the ROI in hud.yaml to restrict the search area; prevents full-frame false positives"
+    example: "hud.ability_primary"
+
+  match_method:
+    type: enum
+    values: [TM_CCORR_NORMED, TM_SQDIFF, TM_CCOEFF_NORMED]
+    default: TM_CCORR_NORMED
+    note: "only TM_CCORR_NORMED and TM_SQDIFF support mask_path"
+
+  threshold:
+    type: float
+    range: [0.0, 1.0]
+    default: 0.92
+    note: "tune per asset; start conservative (0.92) and lower only on false negatives"
+
+  scale_set:
+    type: list[float]
+    default: [0.75, 0.875, 1.0, 1.125]
+    note: "multi-scale pyramid; needed because HUD size varies with resolution and UI scale"
+
+  temporal_window:
+    type: int
+    default: 3
+    note: "number of consecutive frames required to confirm a detection; reduces flicker false positives"
+
+  # ---------------------------------------------------------------------------
+  # Governance
+  # ---------------------------------------------------------------------------
+  source_license_note:
+    type: string
+    default: internal_review_required
+    note: "do not redistribute externally without title-specific legal review"
+
+  qa_status:
+    type: enum
+    values: [draft, verified, deprecated]
+    default: draft
+
+  patch_tag:
+    type: string
+    note: "game patch/season when this entry was last verified against live footage"

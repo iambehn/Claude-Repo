@@ -1,0 +1,30 @@
+# Hero roster template
+# Schema: assets/ontology/hero_roster.schema.yaml
+#
+# One entry per playable hero/agent/legend. Run --wiki-enrich to auto-populate
+# draft entries; then review and promote to this file.
+#
+# Required fields: id, kind, display_name
+# CV fields (asset_icon, source_icon_url, etc.) are populated by wiki_enrichment.py
+#
+entities:
+  - id: HERO_ID                       # slugified, e.g. soldier_76
+    kind: hero                        # hero | weapon
+    display_name: REPLACE_ME          # e.g. "Soldier: 76"
+    role: unspecified                 # assault | tank | support | recon | flex | unspecified
+    aliases: []                       # e.g. [s76, 76]
+    patch_tag: REPLACE_ME             # e.g. "2026-04"
+    source_page: ~                    # canonical wiki/official page URL
+    asset_icon: ~                     # local path, populated by wiki_enrichment.py
+    source_icon_url: ~                # origin URL of downloaded icon
+    source_license_note: internal_review_required
+    qa_status: draft                  # draft | verified | deprecated
+    # CV fields — populated by wiki_enrichment.py draft output, tuned manually
+    cv:
+      template_path: ~                # assets/games/{game}/templates/heroes/{id}.64.png
+      mask_path: ~
+      roi_ref: hud.hero_portrait
+      match_method: TM_CCORR_NORMED
+      threshold: 0.92
+      scale_set: [0.75, 0.875, 1.0, 1.125]
+      temporal_window: 3

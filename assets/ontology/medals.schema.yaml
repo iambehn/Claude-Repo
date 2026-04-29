@@ -1,0 +1,97 @@
+# Medals Schema — universal contract for medal / multi-kill icon CV assets
+# Version: 1
+#
+# One record per named medal, multi-kill, or streak icon per game.
+#
+# IMPORTANT: This schema has NO counterpart in the existing game packs.
+# Medals are referenced as event types in moments.yaml but were never given
+# icon identity or CV metadata. Every game pack must create medals.yaml
+# from scratch using this schema as the contract.
+#
+# Medal-specific OpenCV notes:
+#   - Medals often animate (glow, scale up, fade out) so temporal_window
+#     should be 3–5 frames, not the default 3 used for static ability icons.
+#   - Use a narrow roi_ref that covers only the medal popup region; a broad
+#     ROI will produce false positives from score-change animations.
+#   - Match method must support masks: TM_CCORR_NORMED or TM_SQDIFF.
+#
+schema: medals
+version: "1"
+
+fields:
+  asset_id:
+    type: string
+    required: true
+    note: "globally unique ID: {game_id}.medal.{medal_id}"
+    example: "marvel_rivals.medal.triple_kill"
+
+  game_id:      {type: string, required: true}
+  medal_id:     {type: string, required: true}
+  display_name: {type: string, required: true}
+
+  medal_class:
+    type: enum
+    values: [kill, multikill, streak, objective, assist, revive, extraction, unspecified]
+    note: "multikill = double/triple/quad/ace; streak = killstreak/rampage; extraction = tarkov-style"
+
+  rarity:
+    type: enum
+    values: [common, rare, epic, unspecified]
+    note: "affects expected display frequency; rarer medals need lower temporal_window to catch rare frames"
+
+  # ---------------------------------------------------------------------------
+  # Ingestion provenance
+  # ---------------------------------------------------------------------------
+  source_url:      {type: string}
+  fetch_timestamp: {type: float, note: "Unix timestamp of last successful fetch"}
+  file_hash:       {type: string, note: "SHA-256 of downloaded master"}
+  is_temporary_art:
+    type: bool
+    default: false
+    note: "true for games in active development where medal art is not yet final"
+
+  # ---------------------------------------------------------------------------
+  # Local asset paths
+  # ---------------------------------------------------------------------------
+  master_path:
+    type: string
+    note: "128x128 or 256x256 RGBA master PNG; derive 32x32, 48x48, 64x64 working templates"
+
+  template_path: {type: string}
+  mask_path:     {type: string, note: "alpha mask; required for TM_CCORR_NORMED"}
+
+  # ---------------------------------------------------------------------------
+  # OpenCV matching parameters
+  # ---------------------------------------------------------------------------
+  roi_ref:
+    type: string
+    note: "narrow ROI covering only the medal popup zone in hud.yaml"
+    example: "hud.medal_popup"
+
+  match_method:
+    type: enum
+    values: [TM_CCORR_NORMED, TM_SQDIFF]
+    default: TM_CCORR_NORMED
+    note: "do not use TM_CCOEFF_NORMED here — masks are required for medal icons"
+
+  threshold:
+    type: float
+    range: [0.0, 1.0]
+    default: 0.93
+    note: "slightly higher than ability icons because medal ROI is narrower and match should be tighter"
+
+  scale_set:
+    type: list[float]
+    default: [0.75, 0.875, 1.0, 1.125]
+
+  temporal_window:
+    type: int
+    default: 4
+    note: "3–5 recommended; medals animate so a single-frame match is likely a false positive"
+
+  # ---------------------------------------------------------------------------
+  # Governance
+  # ---------------------------------------------------------------------------
+  source_license_note: {type: string, default: internal_review_required}
+  qa_status:           {type: enum, values: [draft, verified, deprecated], default: draft}
+  patch_tag:           {type: string}

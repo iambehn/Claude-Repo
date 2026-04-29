@@ -18,8 +18,10 @@ Only Fandom wiki URLs are supported. Other domains will return status=failed.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from html.parser import HTMLParser
@@ -61,6 +63,18 @@ class ParsedEntity:
     local_icon_path: str | None = None
     scrape_confidence: float = 0.0
     scrape_status: str = "pending"
+    # Ingestion provenance — populated on successful icon download
+    file_hash: str | None = None
+    fetch_timestamp: float | None = None
+    is_temporary_art: bool = False
+    # CV stub fields — safe defaults; tune per asset after download
+    roi_ref: str = "hud.hero_portrait"
+    match_method: str = "TM_CCORR_NORMED"
+    threshold: float = 0.92
+    scale_set: list[float] = field(default_factory=lambda: [0.75, 0.875, 1.0, 1.125])
+    temporal_window: int = 3
+    source_license_note: str = "internal_review_required"
+    qa_status_cv: str = "draft"
 
 
 @dataclass
@@ -355,6 +369,8 @@ def _download_entity_icons(
         icon_path = icons_dir / f"{entity.entity_id}{ext}"
         icon_path.write_bytes(image_bytes)
         entity.local_icon_path = _path_for_response(icon_path)
+        entity.file_hash = hashlib.sha256(image_bytes).hexdigest()
+        entity.fetch_timestamp = round(time.time(), 3)
         entity.scrape_status = "ok"
         downloaded += 1
     return downloaded
@@ -401,6 +417,20 @@ def _write_draft_files(
                 "local_icon_path": entity.local_icon_path,
                 "scrape_confidence": entity.scrape_confidence,
                 "scrape_status": entity.scrape_status,
+                "file_hash": entity.file_hash,
+                "fetch_timestamp": entity.fetch_timestamp,
+                "is_temporary_art": entity.is_temporary_art,
+                "cv": {
+                    "template_path": None,
+                    "mask_path": None,
+                    "roi_ref": entity.roi_ref,
+                    "match_method": entity.match_method,
+                    "threshold": entity.threshold,
+                    "scale_set": entity.scale_set,
+                    "temporal_window": entity.temporal_window,
+                    "source_license_note": entity.source_license_note,
+                    "qa_status": entity.qa_status_cv,
+                },
             }
             for entity in entities
         },

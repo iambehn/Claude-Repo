@@ -1,0 +1,88 @@
+# HUD / ROI template
+# Coordinates are percentage-based at 1920x1080 (x_pct, y_pct, w_pct, h_pct ∈ [0.0, 1.0])
+# Schema validated by game_pack.py: all *_pct fields must be floats in [0.0, 1.0]
+# and x_pct + w_pct ≤ 1.0, y_pct + h_pct ≤ 1.0
+#
+# Workflow:
+#   1. Take a screenshot from a real gameplay clip
+#   2. Identify each HUD element's pixel bounds
+#   3. Convert to percentages: x_pct = x_px / 1920, w_pct = w_px / 1920
+#   4. Add the ROI here, then enable the detector in game.yaml
+#
+# roi_ref values referenced in abilities.yaml / medals.yaml must match keys
+# defined under 'rois' in this file.
+#
+anchors:
+  top_right:    {x_pct: 1.0, y_pct: 0.0}
+  bottom_left:  {x_pct: 0.0, y_pct: 1.0}
+  bottom_right: {x_pct: 1.0, y_pct: 1.0}
+  center:       {x_pct: 0.5, y_pct: 0.5}
+
+rois:
+  # Kill feed — adjust x_pct/y_pct/w_pct/h_pct to match game's kill feed position
+  kill_feed:
+    anchor: top_right
+    x_pct: -0.20       # offset leftward from top-right anchor
+    y_pct: 0.02
+    w_pct: 0.20
+    h_pct: 0.30
+    kill_colors:
+      - {lower: [0, 0, 200], upper: [180, 30, 255]}   # white/bright — replace with game colors
+    headshot_colors: []
+    pixel_spike_threshold: 50
+
+  # Weapon detector — bottom-left HUD area
+  weapon_detector:
+    anchor: bottom_left
+    x_pct: 0.01
+    y_pct: -0.15
+    w_pct: 0.12
+    h_pct: 0.12
+
+  # Hero portrait — where the player's own hero icon appears
+  hero_portrait:
+    anchor: bottom_left
+    x_pct: 0.0
+    y_pct: 0.0
+    w_pct: 0.01       # REPLACE with real coordinates
+    h_pct: 0.01
+
+  # Ability slots — one ROI per slot; roi_ref in abilities.yaml points here
+  ability_primary:
+    anchor: bottom_left
+    x_pct: 0.0
+    y_pct: 0.0
+    w_pct: 0.01       # REPLACE
+    h_pct: 0.01
+
+  ability_secondary:
+    anchor: bottom_left
+    x_pct: 0.0
+    y_pct: 0.0
+    w_pct: 0.01       # REPLACE
+    h_pct: 0.01
+
+  ability_ultimate:
+    anchor: bottom_left
+    x_pct: 0.0
+    y_pct: 0.0
+    w_pct: 0.01       # REPLACE
+    h_pct: 0.01
+
+  ability_passive:
+    anchor: bottom_left
+    x_pct: 0.0
+    y_pct: 0.0
+    w_pct: 0.01       # REPLACE
+    h_pct: 0.01
+
+  # Medal popup — narrow zone where kill medals / multi-kill notifications appear
+  medal_popup:
+    anchor: center
+    x_pct: -0.10
+    y_pct: -0.15
+    w_pct: 0.20       # REPLACE
+    h_pct: 0.10
+
+  # Templates placeholder — Phase 3 template matching assets go here
+  templates: []

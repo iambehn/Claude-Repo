@@ -1,0 +1,40 @@
+# Medals template
+# Schema: assets/ontology/medals.schema.yaml
+#
+# One entry per named medal, multi-kill, or streak icon.
+# This file has NO auto-population path yet — fill manually or via the
+# asset ingester once it supports medal pages (deferred).
+#
+# medal_class vocabulary:
+#   kill | multikill | streak | objective | assist | revive | extraction | unspecified
+#
+# CV guidance:
+#   Medals animate → use temporal_window 3–5 (not the default 3 for static icons)
+#   roi_ref should be a NARROW region covering only the medal popup zone
+#   Only TM_CCORR_NORMED and TM_SQDIFF support mask_path
+#
+medals:
+  - asset_id: GAME_ID.medal.MEDAL_ID
+    medal_id: MEDAL_ID                # e.g. triple_kill
+    game_id: GAME_ID
+    display_name: REPLACE_ME          # e.g. "Triple Kill"
+    medal_class: unspecified          # see vocabulary above
+    rarity: unspecified               # common | rare | epic | unspecified
+    # Ingestion provenance
+    source_url: ~
+    fetch_timestamp: ~
+    file_hash: ~
+    is_temporary_art: false
+    # Asset paths
+    master_path: ~                    # 128x128 or 256x256 RGBA master
+    template_path: ~
+    mask_path: ~
+    # OpenCV matching parameters
+    roi_ref: hud.medal_popup          # add this ROI to hud.yaml
+    match_method: TM_CCORR_NORMED
+    threshold: 0.93
+    scale_set: [0.75, 0.875, 1.0, 1.125]
+    temporal_window: 4                # medals animate — 3-5 frames recommended
+    source_license_note: internal_review_required
+    qa_status: draft
+    patch_tag: REPLACE_ME

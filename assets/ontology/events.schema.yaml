@@ -1,0 +1,97 @@
+# Events Schema — universal event taxonomy
+# Version: 1
+#
+# The reusable "verbs" of the pipeline. Every shooter genre — FPS, hero shooter,
+# extraction shooter, tactical — can be expressed using these event types.
+#
+# Usage:
+#   Reference event_type values in moments.yaml evidence blocks.
+#   Reference event_record shape when emitting events from detectors.
+#
+# Design note: taxonomy groups are not mutually exclusive. An extraction shooter
+# event (e.g. extraction_completed) can co-occur with a combat event (kill).
+# Detectors emit events independently; the clip judge correlates them.
+#
+schema: events
+version: "1"
+
+taxonomy:
+  combat:
+    - kill              # any confirmed elimination
+    - death             # self elimination
+    - assist            # contributed to elimination without landing kill shot
+    - headshot          # kill or hit to head hitbox
+    - critical_hit      # game-defined critical hit (may overlap headshot)
+    - damage_event      # significant damage burst (not necessarily a kill)
+    - ability_used      # any non-ultimate ability activated
+    - ultimate_used     # ultimate / ult charge expended
+
+  hero_shooter:
+    - team_up_ability   # coordinated multi-hero ability (Marvel Rivals style)
+    - revive            # ally revived from downed state
+    - shield_break      # barrier/shield destroyed
+    - role_action       # role-specific significant action (tank block, support burst heal)
+
+  extraction_shooter:
+    - loot_pickup       # high-value item acquired
+    - extraction_started
+    - extraction_completed
+    - downed            # player downed but not yet eliminated
+    - revived           # player self-revived or ally-revived from downed
+    - extracted_item    # specific item successfully extracted
+
+  objective:
+    - capture_start
+    - capture_complete
+    - payload_push      # meaningful payload advancement
+    - zone_enter        # player enters objective zone
+    - zone_exit
+
+  medal:
+    - medal_awarded     # any named medal displayed on screen
+    - streak_started    # kill streak / rampage begins
+    - streak_ended      # streak broken or match ends
+
+  system:
+    - match_start
+    - match_end
+    - round_start
+    - round_end
+
+# ---------------------------------------------------------------------------
+# Event record shape — what detectors emit into meta.json
+# ---------------------------------------------------------------------------
+event_record:
+  event_id:
+    type: string
+    note: "unique ID for this event instance, e.g. kill_t42.3"
+
+  event_type:
+    type: string
+    values: "see taxonomy above"
+    required: true
+
+  source_hero:
+    type: string
+    optional: true
+    note: "hero_id of the player who triggered the event"
+
+  target_hero:
+    type: string
+    optional: true
+    note: "hero_id of the affected player (for kill/assist/revive)"
+
+  timestamp:
+    type: float
+    required: true
+    note: "seconds from clip start"
+
+  confidence:
+    type: float
+    range: [0.0, 1.0]
+    note: "detector confidence; clip_judge uses this to weight the event"
+
+  metadata:
+    type: dict
+    free_form: true
+    note: "detector-specific payload, e.g. {kill_count: 3, headshot: true}"
