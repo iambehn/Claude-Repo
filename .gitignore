@@ -54,6 +54,9 @@ data/models/
 assets/music/**
 !assets/music/.gitkeep
 
+# Game pack draft outputs — ephemeral scrape results; review then promote to entities.yaml
+assets/games/*/drafts/
+
 # OS
 .DS_Store
 Thumbs.db
