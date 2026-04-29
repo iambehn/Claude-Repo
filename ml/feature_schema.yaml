@@ -1,0 +1,176 @@
+# ml/feature_schema.yaml
+#
+# Two ML feature schemas for the ClipBot pipeline.
+#
+# SCHEMA 1 — window_v1: proxy-scanner candidate windows (NEW)
+#   Source:        CandidateWindow.signal_detail from pipeline/proxy_scanner.py
+#   Training data: data/training_sets/windows/YYYY-MM-DD.jsonl
+#   Status:        NOT YET TRAINED — exporter collects data first
+#
+# SCHEMA 2 — clip_judge_v1: reviewed clip scoring (EXISTING)
+#   Source:        reviewed clips in data/training_sets/clip_judge/
+#   Matches:       utils/model_trainer.py:ALL_FEATURE_NAMES (27 features, exact order)
+#   Status:        LIVE — LogisticRegression trained via `python run.py --train-model`
+#
+# Do NOT reorder features within either schema — both training and inference
+# depend on the feature order defined here.
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCHEMA 1: Window-level proxy fusion
+# ─────────────────────────────────────────────────────────────────────────────
+window_v1:
+  schema_version: "1"
+  description: >
+    Proxy-scanner window features. Extracted from CandidateWindow at scan time,
+    before any clip is downloaded. Visual/ROI features are reserved for window_v2
+    after per-window detection is plumbed into the pipeline.
+  label:
+    field: human_label.decision
+    positive: "accept"
+    negative: "reject"
+  features:
+    # Window-level aggregates ─────────────────────────────────────────────────
+    - name: window_duration
+      type: numeric
+      default: 0.0
+      source: "window.end - window.start"
+
+    - name: proxy_score
+      type: numeric
+      default: 0.0
+      source: "CandidateWindow.proxy_score"
+
+    - name: signal_count
+      type: numeric
+      default: 0.0
+      source: "CandidateWindow.signal_count"
+
+    - name: unique_signal_sources
+      type: numeric
+      default: 0.0
+      source: "len(set(CandidateWindow.signals))"
+
+    # Chat spike signals ───────────────────────────────────────────────────────
+    - name: chat_spike_max_strength
+      type: numeric
+      default: 0.0
+      source: "max(s.strength for s in signal_detail if s.source == 'chat_spike') or 0.0"
+
+    - name: chat_spike_max_confidence
+      type: numeric
+      default: 0.0
+      source: "max(s.confidence for s in signal_detail if s.source == 'chat_spike') or 0.0"
+
+    - name: chat_spike_count
+      type: numeric
+      default: 0.0
+      source: "count(s for s in signal_detail if s.source == 'chat_spike')"
+
+    # Audio spike signals ──────────────────────────────────────────────────────
+    - name: audio_spike_max_strength
+      type: numeric
+      default: 0.0
+      source: "max(s.strength for s in signal_detail if s.source == 'audio_spike') or 0.0"
+
+    - name: audio_spike_max_confidence
+      type: numeric
+      default: 0.0
+      source: "max(s.confidence for s in signal_detail if s.source == 'audio_spike') or 0.0"
+
+    - name: audio_spike_count
+      type: numeric
+      default: 0.0
+      source: "count(s for s in signal_detail if s.source == 'audio_spike')"
+
+    # Viewer clip cluster signals ──────────────────────────────────────────────
+    - name: viewer_clip_count
+      type: numeric
+      default: 0.0
+      source: "count(s for s in signal_detail if s.source == 'viewer_clips')"
+
+    - name: viewer_clip_max_strength
+      type: numeric
+      default: 0.0
+      source: "max(s.strength for s in signal_detail if s.source == 'viewer_clips') or 0.0"
+
+    # Stream marker / chapter signals ─────────────────────────────────────────
+    - name: stream_marker_present
+      type: bool
+      default: false
+      source: "any(s.source in ('stream_marker', 'youtube_chapter') for s in signal_detail)"
+
+    # Temporal agreement ───────────────────────────────────────────────────────
+    # Lag between first chat spike and first audio spike.
+    # -1.0 means one or both signal types are absent (model learns "missing").
+    - name: chat_audio_lag_seconds
+      type: numeric
+      default: -1.0
+      source: "min(audio_timestamps) - min(chat_timestamps), or -1.0 if either is absent"
+
+  # Reserved for window_v2 (require per-window detection pipeline):
+  # - killfeed_persistence
+  # - killfeed_streak_max
+  # - killfeed_first_seen_offset_seconds
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCHEMA 2: Clip-judge learned fusion (existing 27-feature contract)
+# ─────────────────────────────────────────────────────────────────────────────
+clip_judge_v1:
+  schema_version: "1"
+  description: >
+    Clip-judge learned fusion model. Matches ALL_FEATURE_NAMES in
+    utils/model_trainer.py (27 features, exact order). Trained by LogisticRegression
+    pipeline via `python run.py --train-model`. Do not reorder.
+  label:
+    field: label.decision
+    positive: "accepted"
+    negative: "rejected"
+  features:
+    # Numeric (19) ─────────────────────────────────────────────────────────────
+    - {name: duration_seconds,    type: numeric, default: 0.0, source: "meta.duration_seconds"}
+    - {name: resolution_height,   type: numeric, default: 0.0, source: "meta.resolution_height"}
+    - {name: fps,                 type: numeric, default: 0.0, source: "meta.fps"}
+    - {name: silence_ratio,       type: numeric, default: 0.0, source: "meta.silence_ratio"}
+    - {name: scene_change_count,  type: numeric, default: 0.0, source: "meta.scene_change_count"}
+    - {name: keyword_count,       type: numeric, default: 0.0, source: "len(meta.keywords)"}
+    - {name: context_confidence,  type: numeric, default: 0.0, source: "meta.worthiness.context_confidence"}
+    - {name: hook_confidence,     type: numeric, default: 0.0, source: "meta.worthiness.hook_confidence"}
+    - {name: postability_score,   type: numeric, default: 0.0, source: "meta.worthiness.postability_score"}
+    - {name: final_score,         type: numeric, default: 0.0, source: "meta.worthiness.final_score"}
+    - {name: kill_count,          type: numeric, default: 0.0, source: "meta.kill_feed.kill_count"}
+    - {name: headshot_count,      type: numeric, default: 0.0, source: "meta.kill_feed.headshot_count"}
+    - {name: sweat_score,         type: numeric, default: 0.0, source: "meta.kill_feed.sweat_score"}
+    - {name: audio_spike_count,   type: numeric, default: 0.0, source: "meta.audio_events.spike_count"}
+    - {name: weapon_confidence,   type: numeric, default: 0.0, source: "meta.weapon_detection.confidence"}
+    - {name: highlight_score,     type: numeric, default: 0.0, source: "meta.scoring.highlight_score"}
+    - {name: hook_score,          type: numeric, default: 0.0, source: "meta.hook_enforcer.hook_score"}
+    - {name: max_gap_seconds,     type: numeric, default: 0.0, source: "meta.hook_enforcer.retention_flags.max_gap_between_moments_seconds"}
+    - {name: roi_match_count,     type: numeric, default: 0.0, source: "len(meta.roi_matches.matches)"}
+
+    # Boolean (5) — encoded as 1.0 / 0.0 ──────────────────────────────────────
+    - {name: multi_kill_detected, type: bool, default: false, source: "meta.audio_events.multi_kill_detected"}
+    - {name: kill_feed_passed,    type: bool, default: false, source: "meta.kill_feed.passed"}
+    - {name: weapon_detected,     type: bool, default: false, source: "meta.weapon_detection.weapon_id is not null"}
+    - {name: early_hook_passed,   type: bool, default: false, source: "meta.hook_enforcer.early_hook_passed"}
+    - {name: dead_air_risk,       type: bool, default: false, source: "meta.hook_enforcer.retention_flags.dead_air_risk"}
+
+    # Ordinal (3 features — must match _MOTION_MAP, _ENERGY_MAP, _DECISION_MAP) ─
+    - name: motion_level
+      type: ordinal
+      default: 0.0
+      encoding: {low: 0.0, medium: 0.5, high: 1.0}
+      source: "meta.motion_level"
+
+    - name: audio_energy
+      type: ordinal
+      default: 0.0
+      encoding: {low: 0.0, medium: 0.33, high: 0.67, intense: 1.0}
+      source: "meta.audio_energy"
+
+    - name: system_decision
+      type: ordinal
+      default: 0.0
+      encoding: {reject: 0.0, quarantine: 0.5, accept: 1.0}
+      source: "meta.worthiness.decision"

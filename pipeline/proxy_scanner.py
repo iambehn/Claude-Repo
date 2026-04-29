@@ -37,8 +37,11 @@ import yt_dlp
 import yaml
 
 from utils.logger import get_logger
+from pipeline.training_exporter import TrainingExporter
 
 logger = get_logger(__name__)
+
+_training_exporter = TrainingExporter()
 
 # ---------------------------------------------------------------------------
 # Data structures
@@ -667,12 +670,15 @@ def download_candidate_windows(
     inbox = Path(config.get("paths", {}).get("inbox", "inbox")) / game
     inbox.mkdir(parents=True, exist_ok=True)
 
+    source_meta = {"vod_url": vod_url, "vod_id": "", "platform": ""}
+
     clips: list[dict] = []
     for i, window in enumerate(windows):
         logger.info(
             f"[proxy] Downloading window {i+1}/{len(windows)}: "
             f"{window.start:.0f}s–{window.end:.0f}s (score={window.proxy_score:.2f})"
         )
+        _training_exporter.export_window(window, game, source_meta)
         meta = _download_window(vod_url, window, game, config, inbox)
         if meta:
             clips.append(meta)
