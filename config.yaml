@@ -518,3 +518,39 @@ montage:
   require_kill_feed: true        # skip clips without kill_feed data
   output_dir: "montage"
   max_clips: 10                  # safety cap
+
+# ---------------------------------------------------------------------------
+# Image Scraper — OpenCV training asset acquisition
+# ---------------------------------------------------------------------------
+# Downloads hero icons, ability icons, medal notification screenshots, kill
+# feed screenshots, and full HUD screenshots from Google Images or DuckDuckGo.
+# These feed into OpenCV template matching (roi_matcher.py) and future YOLO
+# training sets.
+#
+# Usage:
+#   python run.py --scrape-images marvel_rivals
+#   python run.py --scrape-images marvel_rivals --scrape-categories hero_icon medal
+#   python run.py --scrape-images marvel_rivals --scrape-max 3
+#
+# Google Custom Search API (optional — higher quality, 100 free queries/day):
+#   Set GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID in .env.
+#   Create a Custom Search Engine at https://cse.google.com/cse/
+#   Enable "Image search" and set to "Search the entire web".
+#   Without these vars, DuckDuckGo image search is used automatically.
+#
+# Output layout:
+#   assets/games/{game}/training_images/{category}/{entity}/  ← raw downloads
+#   assets/games/{game}/templates/heroes/                     ← normalized 64px PNGs
+#   assets/games/{game}/templates/medals/
+#   assets/games/{game}/templates/abilities/
+#
+# Manifest (deduplication state between runs):
+#   assets/games/{game}/image_scraper_manifest.yaml
+image_scraper:
+  search_backend: auto            # auto | google_cse | duckduckgo
+  max_per_entity: 5               # images to download per hero/medal/ability
+  request_delay_seconds: 0.8      # polite delay between requests
+  normalize_size: 64              # template PNG side length in pixels
+  output_dir: "assets/games/{game}/training_images"
+  template_dir: "assets/games/{game}/templates"
+  manifest_path: "assets/games/{game}/image_scraper_manifest.yaml"

@@ -556,6 +556,14 @@ def main() -> None:
              "Args: GAME URL (e.g. marvel_rivals https://marvelrivals.fandom.com/wiki/Heroes).",
     )
     group.add_argument(
+        "--scrape-images",
+        metavar="GAME",
+        dest="scrape_images",
+        help="Search and download training images for GAME's hero icons, medals, abilities, "
+             "and HUD screenshots. Uses Google CSE (if GOOGLE_CSE_API_KEY + GOOGLE_CSE_ID are "
+             "set) or DuckDuckGo as fallback. Saves to assets/games/GAME/training_images/.",
+    )
+    group.add_argument(
         "--audit-weapon-detector",
         metavar="GAME",
         dest="audit_weapon_detector",
@@ -649,6 +657,23 @@ def main() -> None:
         help="Notes to attach when using --add-to-gold-set (e.g. '3-kill clear hook').",
     )
     parser.add_argument(
+        "--scrape-categories",
+        metavar="CAT",
+        nargs="+",
+        dest="scrape_categories",
+        default=None,
+        help="Image categories for --scrape-images: hero_icon kill_feed medal ability "
+             "hud_screenshot (default: all).",
+    )
+    parser.add_argument(
+        "--scrape-max",
+        type=int,
+        default=5,
+        metavar="N",
+        dest="scrape_max",
+        help="Max images to download per entity when using --scrape-images (default: 5).",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="With --distribute: show what would be uploaded without actually posting anything.",
@@ -710,6 +735,22 @@ def main() -> None:
         for warning in result.get("warnings") or []:
             logger.warning(f"[wiki_enrich] {warning}")
         sys.exit(0 if result["status"] in ("ok", "partial") else 1)
+
+    if args.scrape_images:
+        from pipeline.image_scraper import scrape_images_for_game
+        results = scrape_images_for_game(
+            args.scrape_images,
+            categories=args.scrape_categories,
+            max_per_entity=args.scrape_max,
+            config=config,
+        )
+        ok = sum(1 for r in results if not r.error)
+        fail = len(results) - ok
+        logger.info(
+            f"[scrape_images] {args.scrape_images}: {ok} images downloaded "
+            f"({fail} failed) → assets/games/{args.scrape_images}/training_images/"
+        )
+        sys.exit(0)
 
     if args.audit_weapon_detector:
         from pipeline.weapon_detector_audit import audit_weapon_detector

@@ -25,5 +25,30 @@ rois:
     w_pct: 0.06510
     h_pct: 0.12500
 
+  # Bottom-center bar: the active hero portrait ring (~890px from left, ~930px from top)
+  # Calibrate once real 1080p footage is available; these are approximate.
+  hero_portrait:
+    anchor: bottom_left
+    x_pct: 0.46354    # ~890px at 1920w
+    y_pct: 0.86111    # ~930px at 1080h
+    w_pct: 0.05208    # ~100px wide
+    h_pct: 0.09259    # ~100px tall
+
+  # Center-right medal popup — appears during kills and multi-kills
+  medal_popup:
+    anchor: top_right
+    x_pct: 0.68750    # ~1320px from left
+    y_pct: 0.28704    # ~310px from top
+    w_pct: 0.26042    # ~500px wide
+    h_pct: 0.18519    # ~200px tall
+
+  # Ultimate ability slot (bottom-center ability bar)
+  ability_ultimate:
+    anchor: bottom_left
+    x_pct: 0.41667    # ~800px
+    y_pct: 0.87963    # ~950px
+    w_pct: 0.04688    # ~90px wide
+    h_pct: 0.08333    # ~90px tall
+
 # Reserved for Phase 3 — template-matching assets per ROI.
 templates: []
