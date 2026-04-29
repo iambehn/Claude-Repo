@@ -588,6 +588,26 @@ def main() -> None:
              "Optional GAME filters to one game (default: all games).",
     )
     group.add_argument(
+        "--train-window-model",
+        metavar="GAME",
+        nargs="?",
+        const="all",
+        dest="train_window_model",
+        help="Train the window fusion model from window JSONL records in "
+             "data/training_sets/windows/. Optional GAME filters to one game "
+             "(default: all games). Saves model to data/models/window_fusion/model.pkl.",
+    )
+    group.add_argument(
+        "--window-training-stats",
+        metavar="GAME",
+        nargs="?",
+        const="all",
+        dest="window_training_stats",
+        help="Print a summary of collected window training records in "
+             "data/training_sets/windows/. Optional GAME filters to one game "
+             "(default: all games).",
+    )
+    group.add_argument(
         "--add-to-gold-set",
         nargs=3,
         metavar=("GAME", "STEM", "DECISION"),
@@ -822,6 +842,72 @@ def main() -> None:
             print("Run the pipeline to score new clips with the learned model.")
         else:
             logger.error(f"[train_model] Failed: {result.get('error')}")
+            sys.exit(1)
+        sys.exit(0)
+
+    if args.window_training_stats is not None:
+        from ml.train_fusion import stats as window_stats
+        game_filter = None if args.window_training_stats == "all" else args.window_training_stats
+        s = window_stats(game_filter=game_filter, config=config)
+        print(f"\nWindow training data — data/training_sets/windows/")
+        print(f"  {s['total_windows']} total   {s['labeled_windows']} labeled   "
+              f"{s['unlabeled_windows']} unlabeled")
+        if s["labeled_windows"]:
+            accept_rate = (
+                f"{s['positive'] / s['labeled_windows']:.1%}"
+                if s["labeled_windows"] else "n/a"
+            )
+            print(f"  positive={s['positive']}  negative={s['negative']}  "
+                  f"accept rate={accept_rate}")
+        print(f"  Date range: {s['date_range']}")
+        if s.get("per_game"):
+            print("\nBy game:")
+            for game, counts in sorted(s["per_game"].items()):
+                print(f"  {game:<20} {counts['total']:>4} total  "
+                      f"{counts['labeled']:>3} labeled  "
+                      f"{counts['positive']:>3} pos  {counts['negative']:>3} neg")
+        sparse = [(k, v) for k, v in s.get("feature_null_rates", {}).items() if v > 0]
+        sparse.sort(key=lambda x: -x[1])
+        if sparse:
+            print("\nSparse features (null rate > 0%):")
+            for feat, rate in sparse[:10]:
+                bar = "█" * int(rate * 20)
+                print(f"  {feat:<40} {rate:>5.1%}  {bar}")
+        else:
+            print("\nAll features fully populated (or no labeled records yet).")
+        print()
+        sys.exit(0)
+
+    if args.train_window_model is not None:
+        from ml.train_fusion import train as train_window_model
+        game_filter = None if args.train_window_model == "all" else args.train_window_model
+        result = train_window_model(game_filter=game_filter, config=config)
+        if result.get("ok"):
+            cv_mean = result.get("cv_accuracy_mean")
+            cv_std  = result.get("cv_accuracy_std")
+            cv_f1   = result.get("cv_f1_mean")
+            train_acc = result.get("train_accuracy")
+            if cv_mean is not None:
+                acc_str = (
+                    f"CV accuracy={cv_mean:.1%} ±{cv_std:.1%}  F1={cv_f1:.1%}  "
+                    f"(train={train_acc:.1%})"
+                )
+            else:
+                acc_str = (
+                    f"train accuracy={train_acc:.1%} "
+                    f"[CV skipped — collect ≥{result.get('n_samples', 0)} labeled windows]"
+                )
+            print(f"Window model trained on {result['n_samples']} samples | {acc_str}")
+            print(f"Saved → {result['model_path']}")
+            print("Top 5 features by weight:")
+            for name, coef in result.get("top_features", [])[:5]:
+                print(f"  {name:<40} {coef:+.4f}")
+            print("Label more windows via: python run.py --label-windows (deferred)")
+        else:
+            reason = result.get("reason", "unknown error")
+            print(f"Window model training skipped: {reason}")
+            print("Label windows by populating human_label.decision in "
+                  "data/training_sets/windows/*.jsonl")
             sys.exit(1)
         sys.exit(0)
 
