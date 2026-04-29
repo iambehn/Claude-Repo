@@ -476,7 +476,13 @@ def _merge_signals_into_windows(
             signals=sorted(sources_seen),
             signal_count=len(group),
             signal_detail=[
-                {"source": s.source, "t": round(s.timestamp, 2), "reason": s.reason}
+                {
+                    "source":     s.source,
+                    "timestamp":  round(s.timestamp, 2),
+                    "strength":   round(min(1.0, max(0.0, s.strength)), 4),
+                    "confidence": round(min(1.0, max(0.0, s.confidence)), 4),
+                    "reason":     s.reason,
+                }
                 for s in group
             ],
         ))
