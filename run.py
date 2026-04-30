@@ -676,6 +676,25 @@ def main() -> None:
              "Optional GAME filters to one game slug (default: all games).",
     )
     group.add_argument(
+        "--add-negative-sample",
+        nargs=3,
+        metavar=("GAME", "SCENE_TYPE", "IMAGE_PATH"),
+        dest="add_negative_sample",
+        help="Add an image to the negative sample bank for GAME. "
+             "SCENE_TYPE must be one of: scoreboard spectator_ui loading_screen "
+             "replay_screen team_select end_screen. "
+             "Example: --add-negative-sample marvel_rivals scoreboard /path/to/frame.png",
+    )
+    group.add_argument(
+        "--audit-negative-bank",
+        metavar="GAME",
+        nargs="?",
+        const="all",
+        dest="audit_negative_bank",
+        help="Print negative sample bank coverage by scene type. "
+             "Optional GAME filters to one game (default: all games with a manifest).",
+    )
+    group.add_argument(
         "--orchestrate",
         metavar="GAME",
         nargs="?",
@@ -721,6 +740,14 @@ def main() -> None:
         dest="label_undownloaded",
         help="With --label-windows: also assign decision='skip' to windows that were "
              "scored but never downloaded (weak negative labels).",
+    )
+    parser.add_argument(
+        "--neg-notes",
+        metavar="TEXT",
+        dest="neg_notes",
+        default="",
+        help="Description to attach when using --add-negative-sample "
+             "(e.g. 'post-match scoreboard full screen').",
     )
     parser.add_argument(
         "--dry-run",
@@ -890,6 +917,55 @@ def main() -> None:
             logger.error(f"[gold_set] {result['error']}")
             sys.exit(1)
         sys.exit(0)
+
+    if args.add_negative_sample:
+        from pipeline.negative_bank import NegativeBank, SCENE_TYPES
+        game, scene_type, image_path = args.add_negative_sample
+        if scene_type not in SCENE_TYPES:
+            logger.error(
+                f"[negative_bank] Unknown scene_type '{scene_type}'. "
+                f"Valid: {', '.join(SCENE_TYPES)}"
+            )
+            sys.exit(1)
+        nb_cfg = config.get("negative_bank", {})
+        bank = NegativeBank(nb_cfg.get("bank_dir", "data/negative_bank"))
+        try:
+            sample = bank.add_sample(
+                game, scene_type, image_path, notes=args.neg_notes
+            )
+            logger.info(
+                f"[negative_bank] Added {sample.sample_id} → "
+                f"data/negative_bank/{game}/{scene_type}/{sample.sample_id}.png"
+            )
+        except (ValueError, FileNotFoundError, RuntimeError) as exc:
+            logger.error(f"[negative_bank] {exc}")
+            sys.exit(1)
+        sys.exit(0)
+
+    if args.audit_negative_bank is not None:
+        from pipeline.negative_bank import NegativeBank, print_audit
+        nb_cfg = config.get("negative_bank", {})
+        bank = NegativeBank(nb_cfg.get("bank_dir", "data/negative_bank"))
+        game_filter = None if args.audit_negative_bank == "all" else args.audit_negative_bank
+        if game_filter:
+            coverage = bank.audit(game_filter)
+            if not coverage:
+                coverage = {game_filter: {}}
+        else:
+            coverage = bank.audit()
+        if not coverage:
+            print("\n  Negative bank is empty. Add samples with:")
+            print("    python run.py --add-negative-sample GAME SCENE_TYPE IMAGE_PATH")
+            print()
+            sys.exit(0)
+        print_audit(coverage)
+        # Exit 1 if any game has a scene type with 0 samples
+        has_gaps = any(
+            count == 0
+            for counts in coverage.values()
+            for count in counts.values()
+        )
+        sys.exit(1 if has_gaps else 0)
 
     if args.evaluate is not None:
         from pipeline.evaluate import run_evaluation, print_scorecard, _load_last_run, _persist_run

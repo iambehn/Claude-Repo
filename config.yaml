@@ -485,6 +485,21 @@ window_model:
   blend_weight: 0.0
 
 # ---------------------------------------------------------------------------
+# Negative Sample Bank — hard-negative scene suppression for OpenCV detectors
+# ---------------------------------------------------------------------------
+# Stores 320×180 thumbnail references for known false-positive scene types
+# (scoreboard, spectator_ui, loading_screen, replay_screen, team_select,
+# end_screen). When enabled, kill_feed and roi_matcher skip any frame that
+# matches a stored negative above check_threshold (NCC similarity).
+#
+# Add samples:  python run.py --add-negative-sample GAME SCENE_TYPE IMAGE_PATH
+# Audit bank:   python run.py --audit-negative-bank [GAME]
+negative_bank:
+  enabled: false          # set true to activate suppression in kill_feed + roi_matcher
+  bank_dir: "data/negative_bank"
+  check_threshold: 0.70   # NCC similarity threshold (0–1); lower = more aggressive
+
+# ---------------------------------------------------------------------------
 # Orchestrator — fault-tolerant clip state machine
 # ---------------------------------------------------------------------------
 # python run.py --orchestrate [GAME]

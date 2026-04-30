@@ -100,7 +100,18 @@ def run_roi_matcher(clip_path: Path, game: str, config: dict) -> dict:
     if not loaded:
         return _write_and_return(meta_path, _skipped("no template images could be loaded"))
 
-    result = _match(clip_path, pack, loaded, frame_sample, kill_timestamps, match_mode)
+    neg_bank = None
+    nb_threshold = 0.70
+    if config.get("negative_bank", {}).get("enabled", False):
+        from pipeline.negative_bank import NegativeBank
+        nb_cfg = config["negative_bank"]
+        neg_bank = NegativeBank(nb_cfg.get("bank_dir", "data/negative_bank"))
+        nb_threshold = float(nb_cfg.get("check_threshold", 0.70))
+
+    result = _match(
+        clip_path, pack, loaded, frame_sample, kill_timestamps, match_mode,
+        game=game, neg_bank=neg_bank, nb_threshold=nb_threshold,
+    )
     _write_and_return(meta_path, result)
 
     n = len(result["matches"])
@@ -124,6 +135,9 @@ def _match(
     frame_sample: str,
     kill_timestamps: list[float],
     match_mode: str,
+    game: str = "",
+    neg_bank: "NegativeBank | None" = None,  # noqa: F821
+    nb_threshold: float = 0.70,
 ) -> dict:
     cap = cv2.VideoCapture(str(clip_path))
     if not cap.isOpened():
@@ -153,6 +167,14 @@ def _match(
             h, w = frame.shape[:2]
             if w != TARGET_WIDTH or h != TARGET_HEIGHT:
                 frame = cv2.resize(frame, (TARGET_WIDTH, TARGET_HEIGHT), interpolation=cv2.INTER_LINEAR)
+
+            if neg_bank is not None:
+                is_neg, scene_type, nb_score = neg_bank.check_frame(frame, game, nb_threshold)
+                if is_neg:
+                    logger.debug(
+                        f"[roi_matcher] @{t:.1f}s suppressed by bank: {scene_type} ({nb_score:.2f})"
+                    )
+                    continue
 
             for tmpl in loaded:
                 roi_name = tmpl["roi_name"]

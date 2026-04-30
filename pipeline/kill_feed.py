@@ -183,10 +183,21 @@ def run_kill_feed_parser(clip_path: Path, game: str, config: dict) -> dict:
             f"for {clip_path.name}"
         )
 
+    neg_bank = None
+    nb_threshold = 0.70
+    if config.get("negative_bank", {}).get("enabled", False):
+        from pipeline.negative_bank import NegativeBank
+        nb_cfg = config["negative_bank"]
+        neg_bank = NegativeBank(nb_cfg.get("bank_dir", "data/negative_bank"))
+        nb_threshold = float(nb_cfg.get("check_threshold", 0.70))
+
     logger.info(f"[kill_feed] Analysing {clip_path.name} ({game})...")
 
     try:
-        events = _analyse_clip(clip_path, game_cfg, kf_cfg, templates, audio_spike_timestamps)
+        events = _analyse_clip(
+            clip_path, game_cfg, kf_cfg, templates, audio_spike_timestamps,
+            game=game, neg_bank=neg_bank, nb_threshold=nb_threshold,
+        )
     except Exception as e:
         logger.error(f"[kill_feed] Analysis failed for {clip_path.name}: {e}")
         result = _disabled_result(f"analysis error: {e}")
@@ -240,6 +251,9 @@ def _analyse_clip(
     kf_cfg: dict,
     templates: dict,
     audio_spike_timestamps: list[float] | None = None,
+    game: str = "",
+    neg_bank: "NegativeBank | None" = None,  # noqa: F821
+    nb_threshold: float = 0.70,
 ) -> list[_Event]:
     """Open the clip, sample frames, and return a list of detected events.
 
@@ -304,6 +318,15 @@ def _analyse_clip(
 
             # Normalize to 1920×1080 before cropping
             norm = _normalize_frame(frame)
+
+            if neg_bank is not None:
+                is_neg, scene_type, nb_score = neg_bank.check_frame(norm, game, nb_threshold)
+                if is_neg:
+                    logger.debug(
+                        f"[kill_feed] @{timestamp:.1f}s suppressed by bank: "
+                        f"{scene_type} ({nb_score:.2f})"
+                    )
+                    continue
 
             # Crop to kill-feed ROI
             roi_bgr = norm[ry:ry + rh, rx:rx + rw]
