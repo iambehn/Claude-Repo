@@ -47,12 +47,40 @@ def _extract_vod_id(vod_url: str) -> str:
     return "unknown"
 
 
+_UNLOADED = object()  # sentinel distinguishing "not tried" from None (no model found)
+
+_DEFAULT_MODEL_PATH = Path("data/models/window_fusion/model.pkl")
+
+
+def _load_window_model():
+    """Lazily load the window fusion model. Returns None if not found or sklearn missing."""
+    try:
+        import joblib
+    except ImportError:
+        return None
+    if not _DEFAULT_MODEL_PATH.exists():
+        return None
+    try:
+        model = joblib.load(_DEFAULT_MODEL_PATH)
+        logger.debug(f"[training_exporter] Loaded window fusion model → {_DEFAULT_MODEL_PATH}")
+        return model
+    except Exception as exc:
+        logger.warning(f"[training_exporter] Could not load window fusion model: {exc}")
+        return None
+
+
 class TrainingExporter:
     """Appends one JSONL row per candidate window to the daily training file."""
 
     def __init__(self, export_dir: str = _DEFAULT_EXPORT_DIR) -> None:
         self._export_dir = Path(export_dir)
         self._export_dir.mkdir(parents=True, exist_ok=True)
+        self._model = _UNLOADED  # loaded on first export_window() call
+
+    def _get_model(self):
+        if self._model is _UNLOADED:
+            self._model = _load_window_model()
+        return self._model
 
     def _daily_path(self) -> Path:
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -114,6 +142,23 @@ class TrainingExporter:
         vod_id = source_meta.get("vod_id") or _extract_vod_id(vod_url)
         window_id = f"{game}_{vod_id}_t{int(window.start)}"
 
+        # Run window fusion model inference if a trained model is available.
+        fusion_score: float | None = None
+        disagreement: float | None = None
+        model = self._get_model()
+        if model is not None:
+            try:
+                from ml.train_fusion import features_to_vector
+                vec = features_to_vector(features)
+                proba = model.predict_proba([vec])[0]
+                pos_idx = list(model.classes_).index(1) if 1 in model.classes_ else 1
+                fusion_score = round(float(proba[pos_idx]), 4)
+                disagreement = round(abs(fusion_score - window.proxy_score), 4)
+                # Attach to the window so scan_report and callers can read it.
+                window.fusion_model_score = fusion_score
+            except Exception as exc:
+                logger.debug(f"[training_exporter] Inference failed for {window_id}: {exc}")
+
         row = {
             "schema_version":  _SCHEMA_VERSION,
             "feature_version": _SCHEMA_VERSION,
@@ -132,8 +177,8 @@ class TrainingExporter:
             "features": features,
             "scores": {
                 "heuristic_score":    window.proxy_score,
-                "fusion_model_score": None,
-                "model_disagreement": None,
+                "fusion_model_score": fusion_score,
+                "model_disagreement": disagreement,
             },
             "human_label": {
                 "decision":            None,
@@ -146,5 +191,10 @@ class TrainingExporter:
         with open(out_path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(row) + "\n")
 
-        logger.debug(f"[training_exporter] {window_id} → {out_path.name}")
+        score_str = (
+            f"heuristic={window.proxy_score:.2f}  model={fusion_score:.2f}"
+            if fusion_score is not None
+            else f"heuristic={window.proxy_score:.2f}  model=n/a"
+        )
+        logger.debug(f"[training_exporter] {window_id}  {score_str} → {out_path.name}")
         return row

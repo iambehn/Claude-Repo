@@ -65,6 +65,7 @@ class CandidateWindow:
     signals: list[str]    # which sources contributed
     signal_count: int
     signal_detail: list[dict] = field(default_factory=list)
+    fusion_model_score: float | None = None  # filled by TrainingExporter at export time
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -680,11 +681,17 @@ def download_candidate_windows(
 
     clips: list[dict] = []
     for i, window in enumerate(windows):
+        _training_exporter.export_window(window, game, source_meta)
+        model_str = (
+            f"  model={window.fusion_model_score:.2f}"
+            if window.fusion_model_score is not None
+            else ""
+        )
         logger.info(
             f"[proxy] Downloading window {i+1}/{len(windows)}: "
-            f"{window.start:.0f}s–{window.end:.0f}s (score={window.proxy_score:.2f})"
+            f"{window.start:.0f}s–{window.end:.0f}s "
+            f"(heuristic={window.proxy_score:.2f}{model_str})"
         )
-        _training_exporter.export_window(window, game, source_meta)
         meta = _download_window(vod_url, window, game, config, inbox)
         if meta:
             clips.append(meta)

@@ -472,6 +472,19 @@ model:
   blend_weight: 0.0
 
 # ---------------------------------------------------------------------------
+# Window Fusion Model — proxy scanner ML scoring
+# ---------------------------------------------------------------------------
+# Trained by: python run.py --train-window-model [GAME]
+# Evaluated by: python run.py --evaluate-windows [GAME]
+# Inference runs automatically during --scan-vod once a model.pkl exists.
+#
+# blend_weight: not used yet — fusion_model_score is display/logging only
+# until enough labeled windows exist for reliable production use.
+window_model:
+  path: "data/models/window_fusion"
+  blend_weight: 0.0
+
+# ---------------------------------------------------------------------------
 # Orchestrator — fault-tolerant clip state machine
 # ---------------------------------------------------------------------------
 # python run.py --orchestrate [GAME]
