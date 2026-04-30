@@ -617,6 +617,17 @@ def main() -> None:
              "Optional GAME filters to one game (default: all games).",
     )
     group.add_argument(
+        "--label-windows",
+        metavar="GAME",
+        nargs="?",
+        const="all",
+        dest="label_windows",
+        help="Backfill human_label.decision in window JSONL records by cross-referencing "
+             "clip review outcomes in inbox/accepted/rejected/. "
+             "Optional GAME filters to one game (default: all games). "
+             "Run after reviewing clips; run --train-window-model afterwards.",
+    )
+    group.add_argument(
         "--train-window-model",
         metavar="GAME",
         nargs="?",
@@ -693,6 +704,13 @@ def main() -> None:
         metavar="N",
         dest="scrape_max",
         help="Max images to download per entity when using --scrape-images (default: 5).",
+    )
+    parser.add_argument(
+        "--label-undownloaded",
+        action="store_true",
+        dest="label_undownloaded",
+        help="With --label-windows: also assign decision='skip' to windows that were "
+             "scored but never downloaded (weak negative labels).",
     )
     parser.add_argument(
         "--dry-run",
@@ -940,6 +958,29 @@ def main() -> None:
         else:
             logger.error(f"[train_model] Failed: {result.get('error')}")
             sys.exit(1)
+        sys.exit(0)
+
+    if args.label_windows is not None:
+        from ml.label_windows import label_windows
+        game_filter = None if args.label_windows == "all" else args.label_windows
+        result = label_windows(
+            game_filter=game_filter,
+            config=config,
+            label_undownloaded=getattr(args, "label_undownloaded", False),
+        )
+        print(
+            f"\nWindow labeling complete — "
+            f"{result['labeled']} newly labeled  "
+            f"{result['already_labeled']} already labeled  "
+            f"{result['not_found']} clip not found  "
+            f"{result['skipped_unreviewed']} not yet reviewed  "
+            f"({result['total']} total windows)"
+        )
+        if result["labeled"] > 0:
+            print(
+                f"\nNext: python run.py --window-training-stats to check coverage, "
+                f"then --train-window-model when you have ≥10 labeled windows."
+            )
         sys.exit(0)
 
     if args.window_training_stats is not None:
