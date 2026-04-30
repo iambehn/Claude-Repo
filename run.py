@@ -666,6 +666,16 @@ def main() -> None:
              "Optional GAME filters to one game slug (default: all games).",
     )
     group.add_argument(
+        "--evaluate-windows",
+        metavar="GAME",
+        nargs="?",
+        const="all",
+        dest="evaluate_windows",
+        help="Run the window fusion evaluation scorecard against labeled window JSONL "
+             "records. Compares heuristic proxy score vs. trained model (if available). "
+             "Optional GAME filters to one game slug (default: all games).",
+    )
+    group.add_argument(
         "--orchestrate",
         metavar="GAME",
         nargs="?",
@@ -891,6 +901,18 @@ def main() -> None:
             print("  Gold set is empty. Add clips with:")
             print("    python run.py --add-to-gold-set GAME STEM DECISION [--notes TEXT]")
         _persist_run(run, game_filter)
+        sys.exit(1 if run.regressions else 0)
+
+    if args.evaluate_windows is not None:
+        from ml.evaluate_fusion import (
+            run_window_evaluation,
+            print_window_scorecard,
+            _persist_window_run,
+        )
+        game_filter = None if args.evaluate_windows == "all" else args.evaluate_windows
+        run = run_window_evaluation(config, game_filter=game_filter)
+        print_window_scorecard(run)
+        _persist_window_run(run, game_filter)
         sys.exit(1 if run.regressions else 0)
 
     if args.training_stats is not None:
