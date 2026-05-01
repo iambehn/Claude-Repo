@@ -494,6 +494,28 @@ window_model:
 #
 # Add samples:  python run.py --add-negative-sample GAME SCENE_TYPE IMAGE_PATH
 # Audit bank:   python run.py --audit-negative-bank [GAME]
+# ---------------------------------------------------------------------------
+# Atomic Event Mapper — fuse detector outputs into typed AtomicEvent objects
+# ---------------------------------------------------------------------------
+# Runs after roi_matcher, before hook_enforcer. Lightweight: reads meta.json
+# only, no OpenCV required. Produces meta.json["atomic_events"] with events
+# (kill, headshot, ultimate_used, medal_awarded) and composites (double_kill,
+# triple_kill, quad_kill, team_wipe) plus a total_excitement score used by
+# clip_judge for a small context_confidence bonus.
+#
+# Re-run after tuning ROI templates or event weights:
+#   python run.py --remap-events GAME
+#
+# multikill_window_seconds: kills within this window form a multi-kill cluster
+# audio_corroborate_window: audio spike within this of a kill boosts confidence
+atomic_events:
+  enabled: true
+  multikill_window_seconds: 4.0
+  audio_corroborate_window: 1.5
+  confidence_base_kill: 0.70
+  confidence_audio_bonus: 0.15
+  confidence_headshot_bonus: 0.10
+
 negative_bank:
   enabled: false          # set true to activate suppression in kill_feed + roi_matcher
   bank_dir: "data/negative_bank"

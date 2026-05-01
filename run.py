@@ -121,6 +121,12 @@ def run_pipeline_for_game(game: str, config: dict) -> None:
         if config.get("roi_matcher", {}).get("enabled", False):
             run_roi_matcher(Path(clip_path), game, config)
 
+        # Atomic Event Mapper: fuse kill_feed, audio, roi_matches into typed events.
+        # Lightweight (no OpenCV); runs even when individual detectors are disabled.
+        if config.get("atomic_events", {}).get("enabled", True):
+            from pipeline.atomic_events import map_atomic_events
+            map_atomic_events(Path(clip_path), game, config)
+
         # Hook Enforcer: verify first 1.5s has an anchor event; propose hard_trim if not.
         if config.get("hook_enforcer", {}).get("enabled", False):
             run_hook_enforcer(Path(clip_path), game, config)
@@ -676,6 +682,15 @@ def main() -> None:
              "Optional GAME filters to one game slug (default: all games).",
     )
     group.add_argument(
+        "--remap-events",
+        metavar="GAME",
+        dest="remap_events",
+        help="Re-run the atomic event mapper for all clips in GAME (or 'all'). "
+             "Clears existing atomic_events keys and rebuilds from detector outputs "
+             "already in each clip's meta.json. Useful after updating event weights "
+             "or ROI_TO_EVENT_TYPE mappings.",
+    )
+    group.add_argument(
         "--add-negative-sample",
         nargs=3,
         metavar=("GAME", "SCENE_TYPE", "IMAGE_PATH"),
@@ -916,6 +931,31 @@ def main() -> None:
         else:
             logger.error(f"[gold_set] {result['error']}")
             sys.exit(1)
+        sys.exit(0)
+
+    if args.remap_events:
+        from pipeline.atomic_events import map_atomic_events
+        game_arg = args.remap_events
+        games = list(config["games"].keys()) if game_arg == "all" else [game_arg]
+        inbox_root = Path(config["paths"]["inbox"])
+        total = remapped = 0
+        for game in games:
+            game_dir = inbox_root / game
+            if not game_dir.exists():
+                continue
+            for meta_path in sorted(game_dir.glob("*.meta.json")):
+                total += 1
+                clip_path = meta_path.with_suffix(".mp4")
+                try:
+                    meta = json.loads(meta_path.read_text())
+                    meta.pop("atomic_events", None)
+                    meta_path.write_text(json.dumps(meta, indent=2))
+                    result = map_atomic_events(clip_path, game, config)
+                    if result:
+                        remapped += 1
+                except (json.JSONDecodeError, OSError) as exc:
+                    logger.warning(f"[remap_events] Skipped {meta_path.name}: {exc}")
+        logger.info(f"[remap_events] Remapped {remapped}/{total} clips.")
         sys.exit(0)
 
     if args.add_negative_sample:

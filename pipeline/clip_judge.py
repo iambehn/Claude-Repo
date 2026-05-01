@@ -116,6 +116,15 @@ def _context_confidence(meta: dict, pack: game_pack.GamePack, config: dict) -> t
     score = sum(active_weights[k] * components[k] for k in components)
     for k, v in components.items():
         explanation.append(f"{k}={v:.2f} (weight={active_weights[k]:.2f})")
+
+    # Atomic events supplementary bonus: up to +0.10, reached at excitement ≥ 10.
+    ae = meta.get("atomic_events") or {}
+    ae_excitement = float(ae.get("total_excitement", 0.0))
+    if ae_excitement > 0:
+        ae_bonus = round(min(0.10, ae_excitement / 10.0), 3)
+        score = _clamp(score + ae_bonus)
+        explanation.append(f"atomic_events: excitement={ae_excitement:.1f} bonus=+{ae_bonus:.3f}")
+
     return _clamp(score), explanation
 
 
