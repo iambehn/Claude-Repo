@@ -66,6 +66,7 @@ _DEFAULT_AUDIO_WINDOW    = 1.5    # seconds — audio spike within this of a kil
 _DEFAULT_CONF_BASE       = 0.70
 _DEFAULT_CONF_AUDIO      = 0.15
 _DEFAULT_CONF_HEADSHOT   = 0.10
+_DEFAULT_CONF_OCR        = 0.12   # bonus when kill_feed_ocr confirms text in ROI
 
 
 # ---------------------------------------------------------------------------
@@ -113,25 +114,28 @@ def map_atomic_events(clip_path: Path, game: str, config: dict) -> dict:
 
     multikill_window = float(ae_cfg.get("multikill_window_seconds", _DEFAULT_MULTIKILL_WINDOW))
     audio_window     = float(ae_cfg.get("audio_corroborate_window", _DEFAULT_AUDIO_WINDOW))
-    conf_base        = float(ae_cfg.get("confidence_base_kill",    _DEFAULT_CONF_BASE))
-    conf_audio       = float(ae_cfg.get("confidence_audio_bonus",  _DEFAULT_CONF_AUDIO))
-    conf_headshot    = float(ae_cfg.get("confidence_headshot_bonus", _DEFAULT_CONF_HEADSHOT))
+    conf_base        = float(ae_cfg.get("confidence_base_kill",      _DEFAULT_CONF_BASE))
+    conf_audio       = float(ae_cfg.get("confidence_audio_bonus",    _DEFAULT_CONF_AUDIO))
+    conf_headshot    = float(ae_cfg.get("confidence_headshot_bonus",  _DEFAULT_CONF_HEADSHOT))
+    conf_ocr         = float(ae_cfg.get("confidence_ocr_bonus",       _DEFAULT_CONF_OCR))
 
     # --- Collect raw signals from meta.json ---
     kf  = meta.get("kill_feed", {}) or {}
     # audio_detector stage writes to either "audio_detector" or "audio_events" key
     ad  = meta.get("audio_detector", {}) or meta.get("audio_events", {}) or {}
     rm  = meta.get("roi_matches", {}) or {}
+    ocr = meta.get("kill_feed_ocr", {}) or {}
 
-    kill_ts      = [float(t) for t in (kf.get("kill_timestamps")      or [])]
-    headshot_ts  = [float(t) for t in (kf.get("headshot_timestamps")  or [])]
-    audio_spikes = [float(t) for t in (ad.get("spike_timestamps")     or [])]
-    roi_matches  = rm.get("matches") or []
+    kill_ts          = [float(t) for t in (kf.get("kill_timestamps")         or [])]
+    headshot_ts      = [float(t) for t in (kf.get("headshot_timestamps")     or [])]
+    audio_spikes     = [float(t) for t in (ad.get("spike_timestamps")        or [])]
+    ocr_confirmed_ts = [float(t) for t in (ocr.get("confirmed_kill_timestamps") or [])]
+    roi_matches      = rm.get("matches") or []
 
     # --- Build atomic events ---
     kill_events = _build_kill_events(
-        kill_ts, headshot_ts, audio_spikes,
-        conf_base, conf_audio, conf_headshot, audio_window,
+        kill_ts, headshot_ts, audio_spikes, ocr_confirmed_ts,
+        conf_base, conf_audio, conf_headshot, conf_ocr, audio_window,
     )
     roi_events  = _build_roi_events(roi_matches)
     composites  = _build_composite_events(kill_events, multikill_window)
@@ -167,13 +171,20 @@ def _build_kill_events(
     kill_ts: list[float],
     headshot_ts: list[float],
     audio_spikes: list[float],
+    ocr_confirmed_ts: list[float],
     conf_base: float,
     conf_audio: float,
     conf_headshot: float,
+    conf_ocr: float,
     audio_window: float,
 ) -> list[AtomicEvent]:
-    """One AtomicEvent per kill timestamp; headshots override with higher excitement."""
+    """One AtomicEvent per kill timestamp; headshots override with higher excitement.
+
+    Confidence is boosted when corroborated by audio spike (+conf_audio) and/or
+    OCR text confirmation (+conf_ocr). Headshot kills get an additional bonus.
+    """
     headshot_set = set(round(t, 3) for t in headshot_ts)
+    ocr_set      = set(round(t, 1) for t in ocr_confirmed_ts)  # 100ms bucket
     events: list[AtomicEvent] = []
 
     for ts in kill_ts:
@@ -187,6 +198,11 @@ def _build_kill_events(
         if closest_spike is not None and abs(closest_spike - ts) <= audio_window:
             conf += conf_audio
             signals.append({"source": "audio_detector", "timestamp": closest_spike})
+
+        # OCR confirmation (kill_feed_ocr stage)
+        if round(ts, 1) in ocr_set:
+            conf += conf_ocr
+            signals.append({"source": "kill_feed_ocr", "timestamp": ts})
 
         if is_headshot:
             conf += conf_headshot

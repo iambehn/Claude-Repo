@@ -339,6 +339,36 @@ roi_matcher:
   match_mode: "color"       # "color" | "grayscale"
 
 # ---------------------------------------------------------------------------
+# Kill-Feed OCR — text confirmation layer for kill-feed events
+# ---------------------------------------------------------------------------
+# Samples frames at kill_timestamps (from kill_feed stage), crops the
+# kill-feed ROI, and runs OCR to verify legible text is present. Cuts false
+# positives from pixel-spike / MOG2 detectors that fire on bright scoreboards
+# or spectator overlays.
+#
+# Results are stored in meta.json["kill_feed_ocr"] and read by the atomic
+# event mapper to add a +0.12 confidence bonus to OCR-confirmed kills.
+#
+# Backends (auto-detected in order):
+#   easyocr   — pip install easyocr   (best accuracy, ~5-10s first-run init)
+#   tesseract — pip install pytesseract  +  apt install tesseract-ocr
+#
+# Re-run after changing kill_keywords or thresholds:
+#   python run.py --ocr-kill-feed GAME
+kill_feed_ocr:
+  enabled: false            # set true once easyocr or pytesseract is installed
+  backend: "easyocr"        # "easyocr" | "tesseract"
+  confidence_threshold: 0.50
+  kill_keywords:            # presence of any keyword sets kill_keyword_found=true
+    - "eliminated"
+    - "killed"
+    - "defeated"
+    - "headshot"
+  sample_window_seconds: 1.0   # sample within ±this of each kill_timestamp
+  frames_per_kill: 3           # frames to sample per kill timestamp
+  sample_fps_fallback: 2.0     # sample rate when no kill_timestamps available
+
+# ---------------------------------------------------------------------------
 # Proxy Scanner — cheap signal detection for full VOD mining
 # ---------------------------------------------------------------------------
 # Identifies candidate time windows in a full VOD using proxy signals before

@@ -100,6 +100,13 @@ def run_pipeline_for_game(game: str, config: dict) -> None:
                     f"for {Path(clip_path).name} — continuing with reduced priority."
                 )
 
+        # Kill-Feed OCR: confirm kill events with text detection in the kill-feed ROI.
+        # Runs after kill_feed so kill_timestamps are available; before atomic_events
+        # so OCR confirmation can boost kill event confidence.
+        if config.get("kill_feed_ocr", {}).get("enabled", False):
+            from pipeline.kill_feed_ocr import run_kill_feed_ocr
+            run_kill_feed_ocr(Path(clip_path), game, config)
+
         # Weapon Detector: identify active weapon from HUD icon ROI.
         # Uses kill_timestamps from kill_feed meta when frame_sample: "kill_timestamps".
         if config.get("weapon_detector", {}).get("enabled", False):
@@ -682,6 +689,15 @@ def main() -> None:
              "Optional GAME filters to one game slug (default: all games).",
     )
     group.add_argument(
+        "--ocr-kill-feed",
+        metavar="GAME",
+        dest="ocr_kill_feed",
+        help="Re-run kill-feed OCR for all clips in GAME (or 'all'). "
+             "Clears existing kill_feed_ocr keys and re-runs OCR confirmation "
+             "using kill_timestamps already in each clip's meta.json. "
+             "Requires kill_feed_ocr.enabled: true in config.",
+    )
+    group.add_argument(
         "--remap-events",
         metavar="GAME",
         dest="remap_events",
@@ -931,6 +947,30 @@ def main() -> None:
         else:
             logger.error(f"[gold_set] {result['error']}")
             sys.exit(1)
+        sys.exit(0)
+
+    if args.ocr_kill_feed:
+        from pipeline.kill_feed_ocr import run_kill_feed_ocr
+        game_arg = args.ocr_kill_feed
+        games = list(config["games"].keys()) if game_arg == "all" else [game_arg]
+        inbox_root = Path(config["paths"]["inbox"])
+        total = reran = 0
+        for game in games:
+            game_dir = inbox_root / game
+            if not game_dir.exists():
+                continue
+            for meta_path in sorted(game_dir.glob("*.meta.json")):
+                total += 1
+                clip_path = meta_path.with_suffix(".mp4")
+                try:
+                    meta = json.loads(meta_path.read_text())
+                    meta.pop("kill_feed_ocr", None)
+                    meta_path.write_text(json.dumps(meta, indent=2))
+                    run_kill_feed_ocr(clip_path, game, config)
+                    reran += 1
+                except (json.JSONDecodeError, OSError) as exc:
+                    logger.warning(f"[ocr_kill_feed] Skipped {meta_path.name}: {exc}")
+        logger.info(f"[ocr_kill_feed] Ran OCR on {reran}/{total} clips.")
         sys.exit(0)
 
     if args.remap_events:
