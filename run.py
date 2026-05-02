@@ -726,6 +726,15 @@ def main() -> None:
              "Optional GAME filters to one game (default: all games with a manifest).",
     )
     group.add_argument(
+        "--calibrate-runtime-review",
+        metavar="SIDECAR_ROOT",
+        dest="calibrate_runtime_review",
+        help="Run calibration diagnostics on reviewed .meta.json sidecars under SIDECAR_ROOT. "
+             "Compares current runtime scores/actions against human review outcomes and emits "
+             "a structured diagnostics report. Report-only: does not mutate sidecars or config. "
+             "Example: --calibrate-runtime-review inbox/marvel_rivals",
+    )
+    group.add_argument(
         "--orchestrate",
         metavar="GAME",
         nargs="?",
@@ -779,6 +788,44 @@ def main() -> None:
         default="",
         help="Description to attach when using --add-negative-sample "
              "(e.g. 'post-match scoreboard full screen').",
+    )
+    parser.add_argument(
+        "--calibrate-game",
+        metavar="GAME",
+        dest="calibrate_game",
+        default=None,
+        help="Filter sidecars by game when using --calibrate-runtime-review.",
+    )
+    parser.add_argument(
+        "--calibrate-output",
+        metavar="PATH",
+        dest="calibrate_output",
+        default=None,
+        help="Write the calibration JSON report to PATH when using --calibrate-runtime-review.",
+    )
+    parser.add_argument(
+        "--calibrate-min-reviewed",
+        metavar="N",
+        type=int,
+        default=5,
+        dest="calibrate_min_reviewed",
+        help="Minimum number of reviewed sidecars required for tuning output "
+             "(default: 5). Fewer returns an insufficient_review_data result.",
+    )
+    parser.add_argument(
+        "--calibrate-debug-dir",
+        metavar="DIR",
+        dest="calibrate_debug_dir",
+        default=None,
+        help="Write extended calibration artifact bundle (JSON + CSVs) to DIR "
+             "when using --calibrate-runtime-review.",
+    )
+    parser.add_argument(
+        "--calibrate-include-unreviewed",
+        action="store_true",
+        dest="calibrate_include_unreviewed",
+        help="Include unreviewed sidecars in coverage count (not tuning metrics) "
+             "when using --calibrate-runtime-review.",
     )
     parser.add_argument(
         "--dry-run",
@@ -1046,6 +1093,32 @@ def main() -> None:
             for count in counts.values()
         )
         sys.exit(1 if has_gaps else 0)
+
+    if args.calibrate_runtime_review:
+        from pipeline.runtime_calibration import (
+            calibrate_runtime_review,
+            print_calibration_report,
+            write_calibration_artifacts,
+        )
+        result = calibrate_runtime_review(
+            sidecar_root=args.calibrate_runtime_review,
+            config=config,
+            game_filter=getattr(args, "calibrate_game", None),
+            min_reviewed=getattr(args, "calibrate_min_reviewed", 5),
+            include_unreviewed=getattr(args, "calibrate_include_unreviewed", False),
+        )
+        print_calibration_report(result)
+        written = write_calibration_artifacts(
+            result,
+            output_path=getattr(args, "calibrate_output", None),
+            debug_dir=getattr(args, "calibrate_debug_dir", None),
+        )
+        if written:
+            print(f"  Artifacts written:")
+            for p in written:
+                print(f"    {p}")
+            print()
+        sys.exit(0 if result.get("ok") else 1)
 
     if args.evaluate is not None:
         from pipeline.evaluate import run_evaluation, print_scorecard, _load_last_run, _persist_run
